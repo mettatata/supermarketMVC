@@ -19,7 +19,6 @@ const UserModel = {
     });
   },
 
-  // params: { name } - performs a LIKE search on username; cb(err, results)
   getUsersByName: function (params, cb) {
     const name = params && params.name ? `%${params.name}%` : '%';
     const sql = 'SELECT id, username, email, address, contact, role FROM users WHERE username LIKE ?';
@@ -28,7 +27,6 @@ const UserModel = {
     });
   },
 
-  // params: { id } ; cb(err, user)
   getUserById: function (params, cb) {
     const id = params && (params.id);
     if (!id) {
@@ -57,7 +55,42 @@ const UserModel = {
     });
   },
 
-  // params: { id, username?, email?, password?, address?, contact?, role? }; cb(err, result)
+  // Provide a hybrid register/createUser/create API that controllers expect.
+  // If a callback is provided, call it (err, user). If no callback, return a Promise that resolves to the created user object.
+  register: function (params, cb) {
+    // callback style
+    if (typeof cb === 'function') {
+      return UserModel.addUser(params, function (err, result) {
+        if (err) return cb(err);
+        const id = result && result.insertId;
+        if (!id) return cb(new Error('Failed to create user'));
+        return UserModel.getUserById({ id: id }, cb);
+      });
+    }
+
+    // promise style
+    return new Promise(function (resolve, reject) {
+      UserModel.addUser(params, function (err, result) {
+        if (err) return reject(err);
+        const id = result && result.insertId;
+        if (!id) return reject(new Error('Failed to create user'));
+        UserModel.getUserById({ id: id }, function (err2, user) {
+          if (err2) return reject(err2);
+          resolve(user);
+        });
+      });
+    });
+  },
+
+  createUser: function (params, cb) {
+    return UserModel.register(params, cb);
+  },
+
+  create: function (params, cb) {
+    return UserModel.register(params, cb);
+  },
+
+  
   updateUser: function (params, cb) {
     const id = params && params.id;
     if (!id) {

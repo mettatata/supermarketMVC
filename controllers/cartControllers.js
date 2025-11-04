@@ -3,7 +3,6 @@ const SupermarketModel = require('../models/supermarket');
 const CartController = {
   // Add product to user's cart
   addToCart: function (req, res) {
-    // debug logs removed to avoid printing session/cart data to the terminal
 
     const user = req.session && req.session.user;
     if (!user) {

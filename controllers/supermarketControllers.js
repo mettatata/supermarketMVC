@@ -106,7 +106,6 @@ const SupermarketController = {
     });
   },
   
-  // Update product (no error view rendering — use flash + redirect)
   updateProduct: function (req, res) {
     const id = req.params.id || req.params.productId;
     if (!id) {
@@ -151,7 +150,7 @@ const SupermarketController = {
     });
   },
 
-  // Delete product (no error view rendering — use flash + redirect)
+  
   deleteProduct: function (req, res) {
     const id = req.params.id || req.params.productId;
     if (!id) {
