@@ -39,11 +39,7 @@ const SupermarketController = {
   },
 
   getProductById: function (req, res) {
-    // detailed trace for debugging duplicate calls
-    console.log('getProductById called for', req.originalUrl, req.method, req.params);
-    console.log('Referer:', req.get('Referer') || '(none)');
-    console.log('User-Agent:', req.get('User-Agent') || '(none)');
-    console.trace('Stack trace for getProductById');
+  // debug logs removed to avoid printing request details and stack traces to the server terminal
 
     const params = { productId: req.params.id };
     SupermarketModel.getProductById(params, function (err, product) {

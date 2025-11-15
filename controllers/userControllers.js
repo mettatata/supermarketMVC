@@ -1,5 +1,6 @@
 const UserModel = require('../models/user');
 const SupermarketModel = require('../models/supermarket');
+const UserProfileModel = require('../models/userProfile');
 
 const UserController = {
     // render registration page
@@ -200,6 +201,71 @@ const UserController = {
         } else {
             res.redirect('/login');
         }
+    }
+,
+
+    // GET /userProfile - show current user's profile
+    showUserProfile: function (req, res) {
+        const sessionUser = req.session && req.session.user;
+        if (!sessionUser) {
+            req.flash && req.flash('error', 'Please log in to view your profile.');
+            return res.redirect('/login');
+        }
+
+        const userid = sessionUser.id || sessionUser.userid;
+        // fetch fresh user info from DB
+        UserProfileModel.getUserById({ userid: userid }, function (err, user) {
+            if (err) {
+                console.error('getUserById error:', err);
+                req.flash && req.flash('error', 'Could not load profile.');
+                return res.redirect('/');
+            }
+            // render profile view; user may be null if not found
+            return res.render('userProfile', { user: user || sessionUser });
+        });
+    },
+
+    // POST /user/update-password - change current user's password
+    updatePassword: function (req, res) {
+        const sessionUser = req.session && req.session.user;
+        if (!sessionUser) {
+            req.flash && req.flash('error', 'Please log in.');
+            return res.redirect('/login');
+        }
+
+        const userid = req.body.id || req.body.userid || sessionUser.id;
+        const newPassword = req.body.newPassword;
+        const confirmPassword = req.body.confirmPassword;
+
+        if (!newPassword || !confirmPassword) {
+            req.flash && req.flash('error', 'Please provide and confirm your new password.');
+            return res.redirect('/userProfile');
+        }
+        if (newPassword.length < 6) {
+            req.flash && req.flash('error', 'Password must be at least 6 characters.');
+            return res.redirect('/userProfile');
+        }
+        if (newPassword !== confirmPassword) {
+            req.flash && req.flash('error', 'Passwords do not match.');
+            return res.redirect('/userProfile');
+        }
+
+        // security: ensure users can only change their own password (unless admin)
+        const isAdmin = sessionUser.role === 'admin';
+        if (!isAdmin && String(sessionUser.id) !== String(userid)) {
+            req.flash && req.flash('error', 'You are not authorized to change this password.');
+            return res.redirect('/userProfile');
+        }
+
+        UserProfileModel.updateUser({ userid: userid, password: newPassword }, function (err, result) {
+            if (err) {
+                console.error('updateUser error:', err);
+                req.flash && req.flash('error', 'Unable to update password. Please try again.');
+                return res.redirect('/userProfile');
+            }
+            req.flash && req.flash('success', 'Password updated successfully.');
+            return res.redirect('/userProfile');
+        });
     }
 };
 

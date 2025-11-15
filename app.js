@@ -8,6 +8,7 @@ const app = express();
 const supermarketController = require('./controllers/supermarketControllers');
 const cartController = require('./controllers/cartControllers');
 const userController = require('./controllers/userControllers');
+const userProfileController = require('./controllers/userProfileController');
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
@@ -120,6 +121,14 @@ app.get('/cart', checkAuthenticated, cartController.showCart);
 
 // Product detail -> use getProductById
 app.get('/product/:id', checkAuthenticated, supermarketController.getProductById);
+
+//
+// User profile (view and password update)
+app.get('/userProfile', checkAuthenticated, userController.showUserProfile);
+// password update route
+app.post('/user/update-password', checkAuthenticated, userController.updatePassword);
+// route for updating email/address from profile edit form
+app.post('/user/update-contact', checkAuthenticated, userProfileController.updateEmailAddress);
 
 // Add product (admin) - GET renders form, POST uses controller.addProduct
 app.get('/addProduct', checkAuthenticated, checkAdmin, function (req, res) {
