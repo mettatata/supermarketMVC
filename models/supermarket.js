@@ -72,6 +72,16 @@ const SupermarketModel = {
       cb(err, result);
     });
   }
+
+  // Decrement stock for a product by amount. Calls back with (err, result).
+  // This uses GREATEST to avoid negative quantities but it's recommended to check availability before calling.
+  ,decrementStock: function (productId, amount, cb) {
+    const qty = Number(amount || 0);
+    const sql = 'UPDATE products SET quantity = GREATEST(quantity - ?, 0) WHERE id = ?';
+    db.query(sql, [qty, productId], function (err, result) {
+      if (typeof cb === 'function') cb(err, result);
+    });
+  }
 };
 
 module.exports = SupermarketModel;

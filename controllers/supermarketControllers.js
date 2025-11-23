@@ -103,6 +103,12 @@ const SupermarketController = {
   },
   
   updateProduct: function (req, res) {
+    const user = req.session && req.session.user;
+    if (!user || user.role !== 'admin') {
+      req.flash && req.flash('error', 'Access denied. Admins only.');
+      return res.redirect('/login');
+    }
+
     const id = req.params.id || req.params.productId;
     if (!id) {
       req.flash('error', 'Missing product ID');
@@ -148,6 +154,12 @@ const SupermarketController = {
 
   
   deleteProduct: function (req, res) {
+    const user = req.session && req.session.user;
+    if (!user || user.role !== 'admin') {
+      req.flash && req.flash('error', 'Access denied. Admins only.');
+      return res.redirect('/login');
+    }
+
     const id = req.params.id || req.params.productId;
     if (!id) {
       req.flash('error', 'Missing product ID');

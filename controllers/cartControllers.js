@@ -1,6 +1,50 @@
 const SupermarketModel = require('../models/supermarket');
+const cartitems = require('../models/cartitems');
 
 const CartController = {
+    // List cart (DB-backed)
+    list: function (req, res) {
+      const user = req.session && req.session.user;
+      if (!user) {
+        req.flash && req.flash('error', 'Please log in to view your cart.');
+        return res.redirect('/login');
+      }
+
+      const userId = (user.userId || user.id);
+      cartitems.getByUserId(userId, (err, rows) => {
+        if (err) {
+          console.error('cartitems.getByUserId error:', err);
+          req.flash && req.flash('error', 'Unable to load cart.');
+          return res.redirect('/shopping');
+        }
+
+        if (!rows || !rows.length) return res.render('cart', { user, cart: [], totalQty: 0, totalPrice: 0 });
+
+        const cart = [];
+        let totalQty = 0;
+        let totalPrice = 0;
+        let remaining = rows.length;
+
+        rows.forEach(row => {
+          SupermarketModel.getProductById({ id: row.productId }, (err2, product) => {
+            if (err2) console.error('getProductById error in cart list:', err2);
+            if (Array.isArray(product)) product = product[0];
+            const item = {
+              productId: String(row.productId),
+              productName: product ? (product.productName || product.name) : 'Unknown',
+              price: Number(product ? (product.price || 0) : 0),
+              image: product ? product.image : null,
+              quantity: Number(row.quantity || 0)
+            };
+            cart.push(item);
+            totalQty += item.quantity;
+            totalPrice += item.price * item.quantity;
+            remaining -= 1;
+            if (remaining === 0) return res.render('cart', { user, cart, totalQty, totalPrice });
+          });
+        });
+      });
+    },
   // Add product to user's cart
   addToCart: function (req, res) {
 
@@ -32,30 +76,17 @@ const CartController = {
             return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
         }
 
-        // ensure session cart structure
-        req.session.cart = req.session.cart || { items: {}, totalQty: 0, totalPrice: 0 };
-        const cart = req.session.cart;
-        const id = String(product.id || product.productId || product.id);
-
-        if (!cart.items[id]) {
-            cart.items[id] = {
-                productId: id,
-                productName: product.productName || product.name || '',
-                price: Number(product.price || 0),
-                image: product.image || null,
-                quantity: 0
-            };
-        }
-
-        cart.items[id].quantity += qty;
-        cart.totalQty = (cart.totalQty || 0) + qty;
-        cart.totalPrice = (Number(cart.totalPrice) || 0) + (Number(cart.items[id].price || 0) * qty);
-
-  // persist cart in session
-  req.session.cart = cart;
-
-        req.flash && req.flash('success', 'Product added to cart.');
-        return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+        const userId = (req.session.user && (req.session.user.userId || req.session.user.id));
+        const unitPrice = product && (product.price || 0);
+        cartitems.add(userId, productId, qty, unitPrice, function (errAdd) {
+          if (errAdd) {
+            console.error('cartitems.add error:', errAdd);
+            req.flash && req.flash('error', 'Unable to add product to cart.');
+            return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+          }
+          req.flash && req.flash('success', 'Product added to cart.');
+          return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+        });
     });
   },
 
@@ -66,9 +97,41 @@ const CartController = {
       req.flash && req.flash('error', 'Please log in to view your cart.');
       return res.redirect('/login');
     }
-    const sessionCart = req.session.cart || { items: {}, totalQty: 0, totalPrice: 0 };
-    const cart = Object.keys(sessionCart.items || {}).map(k => sessionCart.items[k]);
-    return res.render('cart', { user, cart, totalQty: sessionCart.totalQty || 0, totalPrice: sessionCart.totalPrice || 0 });
+    const userId = (user.userId || user.id);
+    // Load DB-backed cart items and render
+   cartitems.getByUserId(userId, (err, rows) => {
+      if (err) {
+        console.error('cartitems.getByUserId error in showCart:', err);
+        req.flash && req.flash('error', 'Unable to load cart.');
+        return res.redirect('/shopping');
+      }
+
+      if (!rows || !rows.length) return res.render('cart', { user, cart: [], totalQty: 0, totalPrice: 0 });
+
+      const cart = [];
+      let totalQty = 0;
+      let totalPrice = 0;
+      let remaining = rows.length;
+
+      rows.forEach(row => {
+        SupermarketModel.getProductById({ id: row.productId }, (err2, product) => {
+          if (err2) console.error('getProductById error in showCart:', err2);
+          if (Array.isArray(product)) product = product[0];
+          const item = {
+            productId: String(row.productId),
+            productName: product ? (product.productName || product.name) : 'Unknown',
+            price: Number(product ? (product.price || 0) : 0),
+            image: product ? product.image : null,
+            quantity: Number(row.quantity || 0)
+          };
+          cart.push(item);
+          totalQty += item.quantity;
+          totalPrice += item.price * item.quantity;
+          remaining -= 1;
+          if (remaining === 0) return res.render('cart', { user, cart, totalQty, totalPrice });
+        });
+      });
+    });
   },
 
   // Remove product from cart (decrease or remove)
@@ -79,23 +142,67 @@ const CartController = {
       return res.redirect('/login');
     }
     const productId = req.body.productId || req.params.id;
-    if (!productId || !req.session.cart) {
-      return res.redirect('back');
+    if (!productId) return res.redirect('back');
+    const userId = (req.session.user && (req.session.user.userId || req.session.user.id));
+    cartitems.remove(userId, productId, (err) => {
+      if (err) {
+        console.error('cartitems.remove error:', err);
+        req.flash && req.flash('error', 'Could not remove item');
+        return res.redirect('/cart');
+      }
+      req.flash && req.flash('success', 'Item removed from cart.');
+      return res.redirect('/cart');
+    });
+  },
+
+  // Decrease quantity of an item by one. If quantity reaches 0, remove the item.
+  decreaseByOne: function (req, res) {
+    const user = req.session && req.session.user;
+    if (!user) {
+      req.flash && req.flash('error', 'Please log in.');
+      return res.redirect('/login');
     }
-    const cart = req.session.cart;
-    const id = String(productId);
-    const item = cart.items[id];
-    if (!item) return res.redirect('back');
 
-    const qty = item.quantity || 0;
-    cart.totalQty = Math.max(0, (cart.totalQty || 0) - qty);
-    cart.totalPrice = Math.max(0, (cart.totalPrice || 0) - item.price * qty);
-    delete cart.items[id];
+    const productId = req.params.id || req.body.productId;
+    if (!productId) {
+      return res.redirect(req.get('Referrer') || req.get('Referer') || '/cart');
+    }
 
-    req.session.cart = cart;
-    req.flash && req.flash('success', 'Item removed from cart.');
-    return res.redirect('/cart');
+    const userId = (req.session.user && (req.session.user.userId || req.session.user.id));
+      cartitems.decrement(userId, productId, 1, (err) => {
+      if (err) {
+        console.error('cartitems.decrement error:', err);
+        req.flash && req.flash('error', 'Could not update cart');
+        return res.redirect('/cart');
+      }
+      req.flash && req.flash('success', 'Cart updated.');
+      return res.redirect('/cart');
+    });
+  },
+
+  // Clear the entire cart
+  clearCart: function (req, res) {
+    const user = req.session && req.session.user;
+    if (!user) {
+      req.flash && req.flash('error', 'Please log in.');
+      return res.redirect('/login');
+    }
+
+    const userId = (req.session.user && (req.session.user.userId || req.session.user.id));
+    cartitems.clear(userId, (err) => {
+      if (err) {
+        console.error('cartitems.clear error:', err);
+        req.flash && req.flash('error', 'Could not clear cart');
+        return res.redirect('/cart');
+      }
+      req.flash && req.flash('success', 'Cart cleared.');
+      return res.redirect('/cart');
+    });
   }
+  // deleteCartID: function (req, res) {
+  //   const user = req.session && req.session.user;
+  //   if (!user) 
+  
 };
 
 module.exports = CartController;

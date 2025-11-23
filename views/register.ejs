@@ -6,24 +6,7 @@
     <title>Supermarket App</title>
   </head>
   <body>
-      <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="/">Supermarket App</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="collapsibleNavbar">
-            <ul class="navbar-nav">
-              <li class="nav-item">
-                <a class="nav-link" href="/register">Register</a>
-              </li> 
-              <li class="nav-item">
-                <a class="nav-link" href="/Login">Login</a>
-              </li> 
-            </ul>
-          </div>
-        </div>
-      </nav>
+      <%- include('partials/navbar') %>
     <div class="container">
         <h1 class="mt-5">Register</h1>
         <% if (messages && messages.length > 0) { %>
@@ -62,7 +45,6 @@
                 <label for="role">Role:</label>
                 <select id="role" name="role" class="form-control" required>
                     <option value="user" <% if (formData && formData.role === 'user') { %> selected <% } %>>User</option>
-                    <option value="admin" <% if (formData && formData.role === 'admin') { %> selected <% } %>>Admin</option>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary">Register</button>

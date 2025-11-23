@@ -8,30 +8,7 @@
   <title>Supermarket App</title>
 </head>
 <body>
-    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="/">Supermarket App</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="collapsibleNavbar">
-          <ul class="navbar-nav">
-            <% if (!user) {%>
-                <li class="nav-item">
-                    <a class="nav-link" href="/register">Register</a>
-                </li> 
-                <li class="nav-item">
-                    <a class="nav-link" href="/Login">Login</a>
-                </li> 
-            <% } else { %>
-                <li class="nav-item">
-                    <a class="nav-link" href="/Logout">Logout</a>
-                </li> 
-            <% } %>
-          </ul>
-        </div>
-      </div>
-    </nav>
+    <%- include('partials/navbar') %>
 
     <div class="container">
         <p style="text-align: center;">
@@ -46,10 +23,13 @@
             <% } else { %>
             <br>
             Welcome to supermarket app! <br>
-            Please <a href = "/login" >login</a> to continue...
+            Please <a href = "/login" >login</a> to continue...<br>
+            <a href ="/register"> Register</a> here if you don't have an account with us!
             <% } %>
         </p>
         
     </div>
 </body>
 </html>
+
+

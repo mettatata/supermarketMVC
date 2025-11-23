@@ -1,0 +1,24 @@
+<nav class="navbar navbar-expand-sm bg-light navbar-light mb-3">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="/">Supermarket App</a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <% if (!user) { %>
+          <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+        <% } else if (user.role === 'admin') { %>
+          <li class="nav-item"><a class="nav-link" href="/shopping">Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="/adminDashboard">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/addProduct">Add Product</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+        <% } else { %>
+          <li class="nav-item"><a class="nav-link" href="/shopping">Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="/cart">Cart</a></li>
+          <li class="nav-item"><a class="nav-link" href="/userProfile">My Profile</a></li>
+          <li class="nav-item"><a class="nav-link" href="/orders">My orders</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+</nav>
