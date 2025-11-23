@@ -7,6 +7,15 @@ const cartitems = {
         db.query(sql, [userId], callback);
     },
 
+    // Get a single cart item for a user and product
+    getItem(userId, productId, callback) {
+        const sql = 'SELECT id, userid, productid AS productId, quantity, price, total FROM cart_items WHERE userid = ? AND productid = ? LIMIT 1';
+        db.query(sql, [userId, productId], function(err, rows) {
+            if (err) return callback(err);
+            return callback(null, rows && rows.length ? rows[0] : null);
+        });
+    },
+
     // Add quantity (or insert). Accept `price` per unit so we can compute `total`.
     add(userId, productId, quantity, price, callback) {
         const qty = Number(quantity || 0);
@@ -16,25 +25,12 @@ const cartitems = {
             if (err) return callback(err);
             if (rows && rows.length) {
                 const existing = rows[0];
-                    let newQty = Number(existing.quantity || 0) + qty;
-                    let capped = false;
-                    if (newQty > 10) { newQty = 10; capped = true; }
-                    const newTotal = newQty * unitPrice;
-                    db.query('UPDATE cart_items SET quantity = ?, price = ?, total = ? WHERE id = ?', [newQty, unitPrice, newTotal, existing.id], (uerr, ures) => {
-                        if (uerr) return callback(uerr);
-                        if (capped) return callback(new Error('Maximum 10 units per product allowed.')); 
-                        return callback(null, ures);
-                    });
+                const newQty = Number(existing.quantity || 0) + qty;
+                const newTotal = newQty * unitPrice;
+                db.query('UPDATE cart_items SET quantity = ?, price = ?, total = ? WHERE id = ?', [newQty, unitPrice, newTotal, existing.id], callback);
             } else {
-                    let insertQty = qty;
-                    let capped = false;
-                    if (insertQty > 10) { insertQty = 10; capped = true; }
-                    const total = insertQty * unitPrice;
-                    db.query('INSERT INTO cart_items (userid, productid, quantity, price, total) VALUES (?, ?, ?, ?, ?)', [userId, productId, insertQty, unitPrice, total], (ierr, ires) => {
-                        if (ierr) return callback(ierr);
-                        if (capped) return callback(new Error('Maximum 10 units per product allowed.'));
-                        return callback(null, ires);
-                    });
+                const total = qty * unitPrice;
+                db.query('INSERT INTO cart_items (userid, productid, quantity, price, total) VALUES (?, ?, ?, ?, ?)', [userId, productId, qty, unitPrice, total], callback);
             }
         });
     },
@@ -61,6 +57,18 @@ const cartitems = {
             const del = 'DELETE FROM cart_items WHERE userid = ? AND productid = ? AND quantity <= 0';
             db.query(del, [userId, productId], callback);
         });
+    },
+
+    // Update quantity explicitly (and total). If newQty <= 0, the row will be deleted.
+    updateQuantity(userId, productId, newQty, unitPrice, callback) {
+        const qty = Number(newQty || 0);
+        const price = Number(unitPrice || 0);
+        if (qty <= 0) {
+            return this.remove(userId, productId, callback);
+        }
+        const total = qty * price;
+        const sql = 'UPDATE cart_items SET quantity = ?, price = ?, total = ? WHERE userid = ? AND productid = ?';
+        db.query(sql, [qty, price, total, userId, productId], callback);
     },
 
     // Clear user's cart

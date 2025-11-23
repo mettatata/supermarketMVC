@@ -33,7 +33,9 @@ const SupermarketController = {
       if (user && user.role === 'admin') {
         return res.render('inventory', { products: results, user, messages: req.flash('error') });
       } else {
-        return res.render('shopping', { products: results, user, messages: req.flash('error') });
+        // hide out-of-stock products from regular users
+        const available = Array.isArray(results) ? results.filter(p => Number(p.quantity || 0) > 0) : [];
+        return res.render('shopping', { products: available, user, messages: req.flash('error') });
       }
     });
   },

@@ -26,11 +26,11 @@ const OrderController = {
         return res.redirect('/shopping');
       }
 
-      // compute total from cart rows (rows include .total)
-      const totalAmount = rows.reduce((sum, r) => sum + Number(r.total || (r.price * r.quantity) || 0), 0);
-
       // check stock availability for each cart item before creating order
       let idx = 0;
+      const removedItems = [];
+      const adjustedItems = [];
+
       const checkNext = () => {
         if (idx >= rows.length) return createOrderRow();
         const r = rows[idx++];
@@ -46,15 +46,51 @@ const OrderController = {
           }
           const available = Number(product.quantity || 0);
           const want = Number(r.quantity || 0);
-          if (want > available) {
-            req.flash && req.flash('error', `Not enough stock for ${product.productName || 'product'} (wanted ${want}, available ${available}).`);
-            return res.redirect('/cart');
+          if (available <= 0) {
+            // remove the cart row for this product
+            cartitems.remove(userId, r.productId, (remErr) => {
+              if (remErr) console.error('Failed removing out-of-stock cart item:', remErr);
+              removedItems.push({ productId: r.productId, name: product.productName || '' });
+              // also remove from rows array so it won't be ordered
+              // mark by setting quantity to 0
+              r._removed = true;
+              checkNext();
+            });
+            return;
           }
+
+          if (want > available) {
+            // adjust cart to available amount
+            cartitems.updateQuantity(userId, r.productId, available, r.price || product.price || 0, (upErr) => {
+              if (upErr) console.error('Failed updating cart to available qty:', upErr);
+              r.quantity = available;
+              r.total = (r.price || product.price || 0) * available;
+              adjustedItems.push({ productId: r.productId, name: product.productName || '', old: want, now: available });
+              checkNext();
+            });
+            return;
+          }
+
+          // enough available, keep as-is
           checkNext();
         });
       };
 
       const createOrderRow = () => {
+        // filter out removed items
+        const finalRows = rows.filter(r => !r._removed);
+        if (!finalRows || !finalRows.length) {
+          // nothing left to order
+          const msgParts = [];
+          if (removedItems.length) msgParts.push('Some items were removed because they are out of stock.');
+          if (adjustedItems.length) msgParts.push('Some item quantities were reduced due to limited stock.');
+          if (msgParts.length) req.flash && req.flash('error', msgParts.join(' '));
+          return res.redirect('/cart');
+        }
+
+        // compute total from adjusted cart rows
+        const totalAmount = finalRows.reduce((sum, r) => sum + Number(r.total || (r.price * r.quantity) || 0), 0);
+
         // create order row
         Orders.createOrder(userId, totalAmount, (err2, result) => {
         if (err2) {
@@ -81,14 +117,36 @@ const OrderController = {
 
             // decrement stock for each product
             let j = 0;
+            const failedDecrements = [];
             const decNext = () => {
               if (j >= items.length) {
-                // all done: clear cart and finish
+                if (failedDecrements.length) {
+                  console.error('Some stock decrements failed:', failedDecrements);
+                  req.flash && req.flash('error', 'Order placed but some product stock updates failed. Contact support.');
+                }
+                // all done (even if some decrements failed): clear cart and finish
                 return clearUserCartAndSession(userId, req, res, '/orders');
               }
               const it = items[j++];
-              SupermarketModel.decrementStock(it.productId, it.quantity, (dsErr) => {
-                if (dsErr) console.error('Failed to decrement stock for', it.productId, dsErr);
+              console.log('Decrementing stock for', it.productId, 'by', it.quantity);
+              SupermarketModel.decrementStock(it.productId, it.quantity, (dsErr, dsRes) => {
+                if (dsErr) {
+                  console.error('Failed to decrement stock for', it.productId, dsErr);
+                  failedDecrements.push({ productId: it.productId, error: dsErr });
+                } else {
+                  // check affectedRows to ensure the conditional update happened
+                  try {
+                    const affected = (dsRes && typeof dsRes.affectedRows === 'number') ? dsRes.affectedRows : null;
+                    if (!affected) {
+                      console.error('Stock not decremented (insufficient quantity) for', it.productId, 'wanted', it.quantity);
+                      failedDecrements.push({ productId: it.productId, error: 'insufficient_quantity' });
+                    } else {
+                      console.log('Stock decremented for', it.productId, 'affectedRows=', affected);
+                    }
+                  } catch (e) {
+                    console.error('Error inspecting decrement result for', it.productId, e);
+                  }
+                }
                 // continue even if decrement fails; we've already recorded the order
                 decNext();
               });

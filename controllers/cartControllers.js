@@ -78,14 +78,42 @@ const CartController = {
 
         const userId = (req.session.user && (req.session.user.userId || req.session.user.id));
         const unitPrice = product && (product.price || 0);
-        cartitems.add(userId, productId, qty, unitPrice, function (errAdd) {
-          if (errAdd) {
-            console.error('cartitems.add error:', errAdd);
+        // Prevent adding if product has no stock
+        const available = Number(product.quantity || 0);
+        if (available <= 0) {
+          req.flash && req.flash('error', 'Product is out of stock.');
+          return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+        }
+
+        // check existing cart quantity for this user/product
+        cartitems.getItem(userId, productId, (gErr, existing) => {
+          if (gErr) {
+            console.error('cartitems.getItem error:', gErr);
             req.flash && req.flash('error', 'Unable to add product to cart.');
             return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
           }
-          req.flash && req.flash('success', 'Product added to cart.');
-          return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+          const already = existing ? Number(existing.quantity || 0) : 0;
+          let allowed = qty;
+          // don't allow more than available stock
+          if (already + allowed > available) {
+            allowed = Math.max(0, available - already);
+          }
+          if (allowed <= 0) {
+            req.flash && req.flash('error', `Cannot add more of this product. Only ${available} available and ${already} already in your cart.`);
+            return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+          }
+
+          cartitems.add(userId, productId, allowed, unitPrice, function (errAdd) {
+            if (errAdd) {
+              console.error('cartitems.add error:', errAdd);
+              // if add returned the maximum-cap error, surface friendly message
+              const msg = (errAdd && errAdd.message && errAdd.message.indexOf('Maximum 10') !== -1) ? errAdd.message : 'Unable to add product to cart.';
+              req.flash && req.flash('error', msg);
+              return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+            }
+            req.flash && req.flash('success', 'Product added to cart.');
+            return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
+          });
         });
     });
   },

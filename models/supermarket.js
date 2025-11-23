@@ -77,9 +77,15 @@ const SupermarketModel = {
   // This uses GREATEST to avoid negative quantities but it's recommended to check availability before calling.
   ,decrementStock: function (productId, amount, cb) {
     const qty = Number(amount || 0);
-    const sql = 'UPDATE products SET quantity = GREATEST(quantity - ?, 0) WHERE id = ?';
-    db.query(sql, [qty, productId], function (err, result) {
-      if (typeof cb === 'function') cb(err, result);
+    // perform atomic decrement only if enough stock exists
+    const sql = 'UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?';
+    db.query(sql, [qty, productId, qty], function (err, result) {
+      if (err) {
+        if (typeof cb === 'function') return cb(err);
+        return;
+      }
+      // result.affectedRows indicates whether the update succeeded
+      if (typeof cb === 'function') cb(null, result);
     });
   }
 };
