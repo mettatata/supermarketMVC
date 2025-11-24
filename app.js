@@ -100,8 +100,6 @@ app.get('/product/:id', checkAuthenticated, supermarketController.getProductById
 //
 // User profile (view and password update)
 app.get('/userProfile', checkAuthenticated, userController.showUserProfile);
-// password update route
-app.post('/user/update-password', checkAuthenticated, userController.updatePassword);
 // route for updating email/address from profile edit form
 app.post('/user/update-contact', checkAuthenticated, userProfileController.updateEmailAddress);
 

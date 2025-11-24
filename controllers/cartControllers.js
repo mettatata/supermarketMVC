@@ -93,25 +93,38 @@ const CartController = {
             return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
           }
           const already = existing ? Number(existing.quantity || 0) : 0;
-          let allowed = qty;
-          // don't allow more than available stock
-          if (already + allowed > available) {
-            allowed = Math.max(0, available - already);
+          const MAX_PER_USER = 10;
+          const remainingCap = MAX_PER_USER - already;
+          if (remainingCap <= 0) {
+            req.flash && req.flash('error', `You already have the maximum of ${MAX_PER_USER} units of this product in your cart.`);
+            return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
           }
+
+          // compute allowed quantity based on stock and cap
+          const spaceByStock = Math.max(0, available - already);
+          let allowed = Math.min(qty, spaceByStock, remainingCap);
           if (allowed <= 0) {
-            req.flash && req.flash('error', `Cannot add more of this product. Only ${available} available and ${already} already in your cart.`);
+            if (spaceByStock <= 0) {
+              req.flash && req.flash('error', `Cannot add more of this product. Only ${available} available and ${already} already in your cart.`);
+            } else {
+              req.flash && req.flash('error', `You can add at most ${remainingCap} more unit(s) of this product (purchase limit ${MAX_PER_USER}).`);
+            }
             return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
           }
 
           cartitems.add(userId, productId, allowed, unitPrice, function (errAdd) {
             if (errAdd) {
               console.error('cartitems.add error:', errAdd);
-              // if add returned the maximum-cap error, surface friendly message
+              // surface friendly message if cap reached
               const msg = (errAdd && errAdd.message && errAdd.message.indexOf('Maximum 10') !== -1) ? errAdd.message : 'Unable to add product to cart.';
               req.flash && req.flash('error', msg);
               return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
             }
-            req.flash && req.flash('success', 'Product added to cart.');
+            if (allowed < qty) {
+              req.flash && req.flash('success', `Added ${allowed} unit(s) to cart (limited by stock or per-user cap).`);
+            } else {
+              req.flash && req.flash('success', 'Product added to cart.');
+            }
             return res.redirect(req.get('Referrer') || req.get('Referer') || '/shopping');
           });
         });

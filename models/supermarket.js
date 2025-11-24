@@ -53,13 +53,11 @@ const SupermarketModel = {
       params.image,
       params.productId || params.id
     ];
-    console.log('MODEL updateProduct SQL:', sql, 'VALUES:', values);
     db.query(sql, values, function (err, result) {
       if (err) {
         console.error('MODEL updateProduct ERROR:', err);
         return cb(err);
       }
-      console.log('MODEL updateProduct RESULT:', result);
       cb(null, result);
     });
   },
