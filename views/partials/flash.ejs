@@ -1,0 +1,15 @@
+<% if (typeof errors !== 'undefined' && errors && errors.length) { %>
+  <div class="alert alert-danger" role="alert">
+    <% errors.forEach(function(err){ %>
+      <div><%= err %></div>
+    <% }) %>
+  </div>
+<% } %>
+
+<% if (typeof success !== 'undefined' && success && success.length) { %>
+  <div class="alert alert-success" role="alert">
+    <% success.forEach(function(s){ %>
+      <div><%= s %></div>
+    <% }) %>
+  </div>
+<% } %>

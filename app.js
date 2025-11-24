@@ -52,8 +52,14 @@ app.use(flash());
 // expose session and flash messages to views
 app.use((req, res, next) => {
   res.locals.session = req.session;
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
+  // normalize flash message keys so views can use either name
+  const errors = req.flash('error') || [];
+  const successes = req.flash('success') || [];
+  res.locals.error = errors;
+  res.locals.errors = errors;
+  res.locals.success = successes;
+  res.locals.successes = successes;
+  res.locals.messages = errors.concat(successes);
   next();
 });
 
@@ -85,7 +91,7 @@ app.get('/shopping', checkAuthenticated, supermarketController.listProducts);
 app.post('/add-to-cart/:id', checkAuthenticated, cartController.addToCart);
 
 // View cart (use controller)
-app.get('/cart', checkAuthenticated, cartController.showCart);
+app.get('/cart', checkAuthenticated, cartController.list);
 // Remove entire item from cart
 app.post('/cart/delete/:id', checkAuthenticated, cartController.removeFromCart);
 app.post('/cart/clear',checkAuthenticated,cartController.clearCart);

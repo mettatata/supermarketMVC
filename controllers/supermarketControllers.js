@@ -41,8 +41,7 @@ const SupermarketController = {
   },
 
   getProductById: function (req, res) {
-  // debug logs removed to avoid printing request details and stack traces to the server terminal
-
+  
     const params = { productId: req.params.id };
     SupermarketModel.getProductById(params, function (err, product) {
       if (err) {

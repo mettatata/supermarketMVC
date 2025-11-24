@@ -6,10 +6,10 @@ const UserController = {
     // render registration page
     showRegister: function (req, res) {
         // prefer already-populated res.locals from middleware to avoid consuming flash twice
-        const errors = (res.locals && (res.locals.error || res.locals.errors)) || req.flash('error') || [];
-        const success = (res.locals && (res.locals.success || res.locals.successes)) || req.flash('success') || [];
+        const errors = (res.locals && (res.locals.error || res.locals.errors)) || [];
+        const success = (res.locals && (res.locals.success || res.locals.successes)) || [];
+        const formData = (res.locals && res.locals.formData) || {};
         const messages = (success && success.length) ? success : (errors && errors.length ? errors : []);
-        const formData = (req.flash && req.flash('formData') && req.flash('formData')[0]) || {};
         res.render('register', { formData, errors, success, messages, user: res.locals.user || null });
     },
 
@@ -92,8 +92,9 @@ const UserController = {
 
     // render login page
     showLogin: function (req, res) {
-        const errors = (res.locals && (res.locals.error || res.locals.errors)) || req.flash('error') || [];
-        const success = (res.locals && (res.locals.success || res.locals.successes)) || req.flash('success') || [];
+        // prefer res.locals (middleware) to avoid consuming req.flash here
+        const errors = (res.locals && (res.locals.error || res.locals.errors)) || [];
+        const success = (res.locals && (res.locals.success || res.locals.successes)) || [];
         const messages = (success && success.length) ? success : (errors && errors.length ? errors : []);
         res.render('login', { errors, success, messages, user: res.locals.user || null });
     },

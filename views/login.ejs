@@ -7,16 +7,9 @@
   </head>
   <body>
       <%- include('partials/navbar') %>
+      <%- include('partials/flash') %>
     <div class="container">
         <h1 class="mt-5">Login</h1>
-        <% if (errors && errors.length > 0) { %>
-            <div class="alert alert-danger">
-                <% errors.forEach(function(error) { %>
-                    <p><%= error %></p>
-                <% }); %>
-            </div>
-        <% } %>
-        
         <form action="/login" method="POST" class="mt-4">
             <div class="form-group">
                 <label for="email">Email:</label>

@@ -131,50 +131,6 @@ const CartController = {
     });
   },
 
-  // Show cart page
-  showCart: function (req, res) {
-    const user = req.session && req.session.user;
-    if (!user) {
-      req.flash && req.flash('error', 'Please log in to view your cart.');
-      return res.redirect('/login');
-    }
-    const userId = (user.userId || user.id);
-    // Load DB-backed cart items and render
-   cartitems.getByUserId(userId, (err, rows) => {
-      if (err) {
-        console.error('cartitems.getByUserId error in showCart:', err);
-        req.flash && req.flash('error', 'Unable to load cart.');
-        return res.redirect('/shopping');
-      }
-
-      if (!rows || !rows.length) return res.render('cart', { user, cart: [], totalQty: 0, totalPrice: 0 });
-
-      const cart = [];
-      let totalQty = 0;
-      let totalPrice = 0;
-      let remaining = rows.length;
-
-      rows.forEach(row => {
-        SupermarketModel.getProductById({ id: row.productId }, (err2, product) => {
-          if (err2) console.error('getProductById error in showCart:', err2);
-          if (Array.isArray(product)) product = product[0];
-          const item = {
-            productId: String(row.productId),
-            productName: product ? (product.productName || product.name) : 'Unknown',
-            price: Number(product ? (product.price || 0) : 0),
-            image: product ? product.image : null,
-            quantity: Number(row.quantity || 0)
-          };
-          cart.push(item);
-          totalQty += item.quantity;
-          totalPrice += item.price * item.quantity;
-          remaining -= 1;
-          if (remaining === 0) return res.render('cart', { user, cart, totalQty, totalPrice });
-        });
-      });
-    });
-  },
-
   // Remove product from cart (decrease or remove)
   removeFromCart: function (req, res) {
     const user = req.session && req.session.user;
