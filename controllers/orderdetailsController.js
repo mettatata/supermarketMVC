@@ -43,7 +43,57 @@ const OrderDetailsController = {
         return res.render('ordersdetails', { user: user, order: order, orderDetails: items });
       });
     });
+
+  exports.showOrderDetails = function (req, res) {
+  const orderId = req.params.id || req.query.id;
+  if (!orderId) {
+    req.flash && req.flash('error', 'Order id required.');
+    return res.redirect('/orders');
   }
+
+  // fetch order and items in parallel (callback style)
+  OrderModel.getById(orderId, function (err, order) {
+    if (err || !order) {
+      console.error('OrderModel.getById error:', err);
+      req.flash && req.flash('error', 'Order not found.');
+      return res.redirect('/orders');
+    }
+
+    OrderDetailsModel.getByOrderId(orderId, function (err2, items) {
+      if (err2) {
+        console.error('OrderDetailsModel.getByOrderId error:', err2);
+        req.flash && req.flash('error', 'Unable to load order items.');
+        return res.redirect('/orders');
+      }
+
+      // ensure arrays and numeric types
+      items = Array.isArray(items) ? items : (items ? [items] : []);
+      items = items.map(i => {
+        const unit = Number(i.unitPrice || 0);
+        const qty = Number(i.quantity || 0);
+        return Object.assign({}, i, {
+          unitPrice: unit,
+          quantity: qty,
+          lineTotal: unit * qty
+        });
+      });
+
+      const grandTotal = items.reduce((s, it) => s + (it.lineTotal || 0), 0);
+
+      // format date here or in view
+      const timestamp = order.created_at || order.timestamp || order.date || order.createdAt;
+
+      return res.render('ordersdetails', {
+        order,
+        orderId,
+        timestamp,
+        items,
+        grandTotal
+      });
+    });
+  });
+};
+}
 };
 
 module.exports = OrderDetailsController;

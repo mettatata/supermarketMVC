@@ -4,10 +4,25 @@
   <meta charset="utf-8">
   <title>Order Details</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { -webkit-print-color-adjust: exact; }
+    }
+    .order-header { margin-top: 20px; margin-bottom: 20px; }
+    table th, table td { vertical-align: middle !important; }
+  </style>
 </head>
 <body>
   <%- include('partials/navbar') %>
   <%- include('partials/flash') %>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      /* hide the main navigation when printing this page */
+      nav.navbar { display: none !important; }
+    }
+  </style>
   <main class="container my-5">
     <h2>Your Orders Details </h2>
     <p>Orders for <strong><%= user ? (user.username || user.name || user.email) : 'User' %></strong></p>
@@ -27,7 +42,10 @@
           <% let grand = 0; %>
           <% orderDetails.forEach(function(it) { %>
             <% const pname = it.productname || it.product_name || ('Product ' + (it.productid || '')); %>
-            <% const qty = Number(it.quantity || 0); const unit = Number(it.unitprice || it.price || 0); const line = Number(it.total) || (unit * qty); grand += line; %>
+            <% const qty = Number(it.quantity || 0);
+               const unit = Number(it.unitprice || it.price || 0);
+               const line = (typeof it.lineTotal !== 'undefined' && it.lineTotal !== null) ? Number(it.lineTotal) : (Number(it.total) || (unit * qty));
+               grand += line; %>
             <tr>
               <td><%= pname %></td>
               <td class="text-center"><%= qty %></td>
@@ -39,11 +57,12 @@
         <tfoot>
           <tr>
             <th colspan="3" class="text-end">Grand Total</th>
-            <th class="text-end">$<%= grand.toFixed(2) %></th>
+            <th class="text-end">$<%= (typeof grandTotal !== 'undefined' ? Number(grandTotal).toFixed(2) : grand.toFixed(2)) %></th>
           </tr>
         </tfoot>
       </table>
-      <a href="/orders" class="btn btn-secondary">Back to Orders</a>
+      <a href="/orders" class="btn btn-secondary no-print">Back to Orders</a>
+      <button onclick="window.print()" class="btn btn-info no-print">Print</button>
     <% } else { %>
       <% if (!orders || !orders.length) { %>
         <div class="alert alert-info">You have no orders yet.</div>

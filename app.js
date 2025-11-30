@@ -140,7 +140,7 @@ app.post('/orders', checkAuthenticated, orderController.createOrder);
 app.get('/orders', checkAuthenticated, orderController.listOrders);
 // Order details page
 app.get('/orderdetails', checkAuthenticated, orderDetailsController.showOrderDetails);
-
+app.get('/orders/:id', orderDetailsController.showOrderDetails);
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

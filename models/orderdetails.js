@@ -12,5 +12,14 @@ const OrderDetails = {
     db.query(sql, [orderId], callback);
   }
 };
-
+exports.showOrderDetails = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await OrderModel.getById(orderId);
+    const items = await OrderDetailsModel.getByOrderId(orderId);
+    // compute lineTotal and grandTotal as above, then render
+  } catch (err) {
+    // handle error
+  }
+};
 module.exports = OrderDetails;
