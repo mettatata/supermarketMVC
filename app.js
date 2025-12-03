@@ -11,7 +11,7 @@ const supermarketController = require('./controllers/supermarketControllers');
 const cartController = require('./controllers/cartControllers');
 const userController = require('./controllers/userControllers');
 const userProfileController = require('./controllers/userProfileController');
-const orderController = require('./controllers/order');
+const orderController = require('./controllers/orderController');
 const orderDetailsController = require('./controllers/orderdetailsController');
 const adminController = require('./controllers/adminController');
 
