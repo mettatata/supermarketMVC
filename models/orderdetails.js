@@ -5,7 +5,7 @@ const OrderDetails = {
   // fields: id, orderid, productid, quantity, price, total, productname (if joined), product_image
   getByOrderId(orderId, callback) {
     const sql = `SELECT od.id, od.orderid, od.productid, od.quantity, od.price, od.total,
-      p.productName AS productname, p.image AS product_image, p.price AS unitprice
+      p.productName AS productname, p.price AS unitprice
       FROM order_details od
       LEFT JOIN products p ON p.id = od.productid
       WHERE od.orderid = ?`;
