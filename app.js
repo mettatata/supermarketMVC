@@ -113,11 +113,11 @@ app.post('/user/update-contact', checkAuthenticated, userProfileController.updat
 app.get('/addProduct', checkAuthenticated, checkAuthorised(['admin']), function (req, res) {
     res.render('addProduct', { user: req.session.user, messages: req.flash('error') });
 });
-app.post('/addProduct', checkAuthenticated, checkAuthorised(['admin']), upload.single('image'), supermarketController.addProduct);
+app.post('/addProduct', checkAuthenticated, checkAuthorised(['admin']), supermarketController.addProduct);
 
 // Update product (admin) - reuse getProductById to render update form (controller checks req.path)
 app.get('/updateProduct/:id', checkAuthenticated, checkAuthorised(['admin']), supermarketController.getProductById);
-app.post('/updateProduct/:id', checkAuthenticated, checkAuthorised(['admin']), upload.single('image'), supermarketController.updateProduct);
+app.post('/updateProduct/:id', checkAuthenticated, checkAuthorised(['admin']), supermarketController.updateProduct);
 
 // Delete product (admin)
 app.get('/deleteProduct/:id', checkAuthenticated, checkAuthorised(['admin']), supermarketController.deleteProduct);
