@@ -129,12 +129,18 @@ const SupermarketController = {
       }
 
       // Use provided values or fall back to existing ones
+      // accept either `productName` or `name` from the form (some views use `name`)
+      const productNameFromBody = (req.body.productName && req.body.productName.trim() !== '')
+        ? req.body.productName
+        : ((req.body.name && req.body.name.trim() !== '') ? req.body.name : '');
+
       const product = {
-        productName: (req.body.productName && req.body.productName.trim() !== '') ? req.body.productName : existing.productName,
-        quantity: (req.body.quantity !== undefined && req.body.quantity !== '') ? req.body.quantity : existing.quantity,
-        price: (req.body.price !== undefined && req.body.price !== '') ? req.body.price : existing.price,
+        productName: productNameFromBody || existing.productName,
+        quantity: (req.body.quantity !== undefined && req.body.quantity !== '') ? Number(req.body.quantity) : existing.quantity,
+        price: (req.body.price !== undefined && req.body.price !== '') ? Number(req.body.price) : existing.price,
         image: req.file ? req.file.filename : existing.image // keep old image if not replaced
       };
+
 
       SupermarketModel.updateProduct(Object.assign({}, product, { productId: id }), function (err, result) {
         if (err) {
