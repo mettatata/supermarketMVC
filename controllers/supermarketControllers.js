@@ -5,7 +5,8 @@ function formatProduct(p) {
   return `id: ${p.id}
 productName: ${p.productName}
 quantity: ${p.quantity}
-price: ${p.price}`;
+price: ${p.price}
+image: ${p.image}`;
 }
 
 const SupermarketController = {
@@ -75,6 +76,7 @@ const SupermarketController = {
     const productName = (req.body.productName || req.body.name || '').trim();
     const quantity = Number(req.body.quantity || req.body.qty || 0);
     const price = Number(req.body.price || 0);
+    const image = req.file ? (req.file.filename || req.file.path) : (req.body.image || null);
 
     if (!productName || isNaN(quantity) || isNaN(price)) {
       req.flash('error', 'Product name, quantity and price are required and must be valid.');
@@ -85,7 +87,8 @@ const SupermarketController = {
     const productParams = {
       productName: productName,
       quantity: quantity,
-      price: price
+      price: price,
+      image: image
     };
 
     SupermarketModel.addProduct(productParams, function (err, result) {
@@ -129,7 +132,8 @@ const SupermarketController = {
       const product = {
         productName: (req.body.productName && req.body.productName.trim() !== '') ? req.body.productName : existing.productName,
         quantity: (req.body.quantity !== undefined && req.body.quantity !== '') ? req.body.quantity : existing.quantity,
-        price: (req.body.price !== undefined && req.body.price !== '') ? req.body.price : existing.price
+        price: (req.body.price !== undefined && req.body.price !== '') ? req.body.price : existing.price,
+        image: req.file ? req.file.filename : existing.image // keep old image if not replaced
       };
 
       SupermarketModel.updateProduct(Object.assign({}, product, { productId: id }), function (err, result) {

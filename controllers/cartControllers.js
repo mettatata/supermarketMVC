@@ -33,6 +33,7 @@ const CartController = {
               productId: String(row.productId),
               productName: product ? (product.productName || product.name) : 'Unknown',
               price: Number(product ? (product.price || 0) : 0),
+              image: product ? product.image : null,
               quantity: Number(row.quantity || 0)
             };
             cart.push(item);

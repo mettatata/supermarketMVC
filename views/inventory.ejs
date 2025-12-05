@@ -21,6 +21,7 @@
       <thead>
           <tr>
             <th width="100">Product Name</th>
+            <th width="100">Product Image</th>
             <th width="50">Quantity</th>
             <th width="50">Price</th>
             <th width="50">Edit</th>
@@ -31,6 +32,7 @@
         <% for(let i=0; i < products.length; i++) { %>
           <tr>
             <td><a href="/product/<%= products[i].id %>" ><%= products[i].productName %></a></td>
+            <td><img src = "images/<%= products[i].image %>" width="20%"></td>
             <td><%= products[i].quantity %></td>
             <td>$<%= products[i].price.toFixed(2) %></td>
             <td><a href="/updateProduct/<%= products[i].id %>">Edit</a></td>

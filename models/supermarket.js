@@ -3,7 +3,7 @@ const db = require('../db');
 const SupermarketModel = {
   // params: { limit, offset } optional; cb(err, results)
   getAllProducts: function (params, cb) {
-    let sql = 'SELECT id, productName, quantity, price FROM products';
+    let sql = 'SELECT id, productName, quantity, price, image FROM products';
     const values = [];
 
     if (params && (params.limit !== undefined || params.offset !== undefined)) {
@@ -22,33 +22,35 @@ const SupermarketModel = {
   // params: { productId } or numeric id; cb(err, product)
   getProductById: function (params, cb) {
     const id = (typeof params === 'object') ? (params.productId || params.id) : params;
-    const sql = 'SELECT id, productName, quantity, price FROM products WHERE id = ?';
+    const sql = 'SELECT id, productName, quantity, price, image FROM products WHERE id = ?';
     db.query(sql, [id], function (err, results) {
       if (err) return cb(err);
       cb(null, results && results.length ? results[0] : null);
     });
   },
 
-  // params: { productName, quantity, price }, cb(err, result)
+  // params: { productName, quantity, price, image }, cb(err, result)
   addProduct: function (params, cb) {
     if (!params) return cb && cb(new Error('Missing product params'));
     const productName = params.productName || params.name || null;
     const quantity = typeof params.quantity === 'number' ? params.quantity : Number(params.quantity) || 0;
     const price = typeof params.price === 'number' ? params.price : Number(params.price) || 0;
+    const image = params.image || null;
 
-    const sql = 'INSERT INTO products (productName, quantity, price) VALUES (?, ?, ?)';
-    db.query(sql, [productName, quantity, price], function (err, result) {
+    const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
+    db.query(sql, [productName, quantity, price, image], function (err, result) {
       if (typeof cb === 'function') cb(err, result);
     });
   },
 
-  // params: { productId, productName, quantity, price }; cb(err, result)
+  // params: { productId, productName, quantity, price, image }; cb(err, result)
   updateProduct: function (params, cb) {
-    const sql = 'UPDATE products SET productName = ?, quantity = ?, price = ? WHERE id = ?';
+    const sql = 'UPDATE products SET productName = ?, quantity = ?, price = ?, image = ? WHERE id = ?';
     const values = [
       params.productName,
       params.quantity,
       params.price,
+      params.image,
       params.productId || params.id
     ];
     db.query(sql, values, function (err, result) {
