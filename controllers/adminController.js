@@ -2,20 +2,20 @@ const UserModel = require('../models/user');
 
 const AdminController = {
   // GET /admin - show user management dashboard
-  listUsers: function (req, res) {
-    const params = { limit: req.query.limit, offset: req.query.offset };
-    UserModel.getAllUsers(params, function (err, users) {
-      if (err) {
-        console.error('AdminController.listUsers error:', err);
-        req.flash && req.flash('error', 'Could not load users.');
-        return res.redirect('/');
-      }
+  listUsers: async function (req, res) {
+    try {
+      const params = { limit: req.query.limit, offset: req.query.offset };
+      const users = await UserModel.getAllUsers(params);
       return res.render('adminDashboard', { user: req.session.user, users: users || [] });
-    });
+    } catch (err) {
+      console.error('AdminController.listUsers error:', err);
+      req.flash && req.flash('error', 'Could not load users.');
+      return res.redirect('/');
+    }
   },
 
   // POST /user/delete/:id - delete a user (admin only)
-  deleteUser: function (req, res) {
+  deleteUser: async function (req, res) {
     const id = req.params && (req.params.id || req.body.id);
     if (!id) {
       req.flash && req.flash('error', 'Missing user id');
@@ -28,17 +28,16 @@ const AdminController = {
       return res.redirect('/admin');
     }
 
-    UserModel.deleteUser({ id: id }, function (err, result) {
-      if (err) {
-        console.error('AdminController.deleteUser error:', err);
-        req.flash && req.flash('error', 'Unable to delete user.');
-        return res.redirect('/admin');
-      }
+    try {
+      await UserModel.deleteUser({ id: id });
       req.flash && req.flash('success', 'User deleted.');
       return res.redirect('/admin');
-    });
-  }
-  ,
+    } catch (err) {
+      console.error('AdminController.deleteUser error:', err);
+      req.flash && req.flash('error', 'Unable to delete user.');
+      return res.redirect('/admin');
+    }
+  },
 
   // GET /user/add - render add user form (admin only)
   showAddUser: function (req, res) {
@@ -52,7 +51,7 @@ const AdminController = {
   },
 
   // POST /user/add - create a new user
-  createUser: function (req, res) {
+  createUser: async function (req, res) {
     const payload = {
       username: req.body.username,
       email: req.body.email,
@@ -74,16 +73,16 @@ const AdminController = {
       return res.redirect('/user/add');
     }
 
-    UserModel.addUser(payload, function (err, result) {
-      if (err) {
-        console.error('AdminController.createUser error:', err);
-        req.flash && req.flash('error', 'Unable to create user.');
-        req.flash && req.flash('formData', req.body);
-        return res.redirect('/user/add');
-      }
+    try {
+      await UserModel.addUser(payload);
       req.flash && req.flash('success', 'User created.');
       return res.redirect('/admin');
-    });
+    } catch (err) {
+      console.error('AdminController.createUser error:', err);
+      req.flash && req.flash('error', 'Unable to create user.');
+      req.flash && req.flash('formData', req.body);
+      return res.redirect('/user/add');
+    }
   }
 };
 
