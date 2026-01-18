@@ -1,3 +1,4 @@
+
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
@@ -14,6 +15,7 @@ const userProfileController = require('./controllers/userProfileController');
 const orderController = require('./controllers/orderController');
 const orderDetailsController = require('./controllers/orderdetailsController');
 const adminController = require('./controllers/adminController');
+const paymentController = require('./controllers/paymentController');
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
@@ -141,6 +143,11 @@ app.get('/orders', checkAuthenticated, orderController.listOrders);
 // Order details page
 app.get('/orderdetails', checkAuthenticated, orderDetailsController.showOrderDetails);
 app.get('/orders/:id', orderDetailsController.showOrderDetails);
+
+// Payment routes (PayPal integration)
+app.post('/api/paypal/create-order', checkAuthenticated, paymentController.createOrder);
+app.post('/api/paypal/pay', checkAuthenticated, paymentController.pay);
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

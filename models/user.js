@@ -1,8 +1,8 @@
 const db = require('../db');
 
 const UserModel = {
-  // params: { limit, offset } optional; cb(err, results)
-  getAllUsers: function (params, cb) {
+  // Async version: get all users with optional pagination
+  getAllUsers: async function (params) {
     let sql = 'SELECT id, username, email, address, contact, role FROM users';
     const values = [];
 
@@ -14,33 +14,31 @@ const UserModel = {
       );
     }
 
-    db.query(sql, values, function (err, results) {
-      if (typeof cb === 'function') cb(err, results);
-    });
+    const [results] = await db.query(sql, values);
+    return results;
   },
 
-  getUsersByName: function (params, cb) {
+  // Async version: get users by name
+  getUsersByName: async function (params) {
     const name = params && params.name ? `%${params.name}%` : '%';
     const sql = 'SELECT id, username, email, address, contact, role FROM users WHERE username LIKE ?';
-    db.query(sql, [name], function (err, results) {
-      if (typeof cb === 'function') cb(err, results);
-    });
+    const [results] = await db.query(sql, [name]);
+    return results;
   },
 
-  getUserById: function (params, cb) {
+  // Async version: get user by ID
+  getUserById: async function (params) {
     const id = params && (params.id);
     if (!id) {
-      if (typeof cb === 'function') return cb(new Error('Missing user id'));
-      return;
+      throw new Error('Missing user id');
     }
     const sql = 'SELECT id, username, email, address, contact, role FROM users WHERE id = ?';
-    db.query(sql, [id], function (err, results) {
-      if (typeof cb === 'function') cb(err, results && results.length ? results[0] : null);
-    });
+    const [results] = await db.query(sql, [id]);
+    return results && results.length ? results[0] : null;
   },
 
-  // params: { username, email, password, address, contact, role }; cb(err, result)
-  addUser: function (params, cb) {
+  // Async version: add user
+  addUser: async function (params) {
     const sql = 'INSERT INTO users (username, email, password, address, contact, role) VALUES (?, ?, SHA1(?), ?, ?, ?)';
     const values = [
       params.username,
@@ -50,36 +48,30 @@ const UserModel = {
       params.contact || null,
       params.role || 'user'
     ];
-    db.query(sql, values, function (err, result) {
-      if (typeof cb === 'function') cb(err, result);
-    });
+    const [result] = await db.query(sql, values);
+    return result;
   },
 
-  // Provide a hybrid register/createUser/create API that controllers expect.
-  // If a callback is provided, call it (err, user). If no callback, return a Promise that resolves to the created user object.
+  // Hybrid register method supporting both async and callback styles
   register: function (params, cb) {
-    // callback style
+    // callback style (for backward compatibility with controllers that still use callbacks)
     if (typeof cb === 'function') {
-      return UserModel.addUser(params, function (err, result) {
-        if (err) return cb(err);
-        const id = result && result.insertId;
-        if (!id) return cb(new Error('Failed to create user'));
-        return UserModel.getUserById({ id: id }, cb);
-      });
+      UserModel._registerAsync(params)
+        .then(user => cb(null, user))
+        .catch(err => cb(err));
+      return;
     }
 
-    // promise style
-    return new Promise(function (resolve, reject) {
-      UserModel.addUser(params, function (err, result) {
-        if (err) return reject(err);
-        const id = result && result.insertId;
-        if (!id) return reject(new Error('Failed to create user'));
-        UserModel.getUserById({ id: id }, function (err2, user) {
-          if (err2) return reject(err2);
-          resolve(user);
-        });
-      });
-    });
+    // promise style (for controllers using async/await)
+    return UserModel._registerAsync(params);
+  },
+
+  // Internal async implementation
+  _registerAsync: async function (params) {
+    const result = await UserModel.addUser(params);
+    const id = result && result.insertId;
+    if (!id) throw new Error('Failed to create user');
+    return await UserModel.getUserById({ id });
   },
 
   createUser: function (params, cb) {
@@ -91,11 +83,11 @@ const UserModel = {
   },
 
   
-  updateUser: function (params, cb) {
+  // Async version: update user
+  updateUser: async function (params) {
     const id = params && params.id;
     if (!id) {
-      if (typeof cb === 'function') return cb(new Error('Missing user id'));
-      return;
+      throw new Error('Missing user id');
     }
 
     const fields = [];
@@ -121,37 +113,46 @@ const UserModel = {
     }
 
     if (fields.length === 0) {
-      if (typeof cb === 'function') return cb(null, { affectedRows: 0 });
-      return;
+      return { affectedRows: 0 };
     }
 
     const sql = 'UPDATE users SET ' + fields.join(', ') + ' WHERE id = ?';
     values.push(id);
 
-    db.query(sql, values, function (err, result) {
-      if (typeof cb === 'function') cb(err, result);
-    });
+    const [result] = await db.query(sql, values);
+    return result;
   },
 
-  // params: { id } ; cb(err, result)
-  deleteUser: function (params, cb) {
+  // Async version: delete user
+  deleteUser: async function (params) {
     const id = params && params.id;
     if (!id) {
-      if (typeof cb === 'function') return cb(new Error('Missing user id'));
-      return;
+      throw new Error('Missing user id');
     }
     const sql = 'DELETE FROM users WHERE id = ?';
-    db.query(sql, [id], function (err, result) {
-      if (typeof cb === 'function') cb(err, result);
-    });
+    const [result] = await db.query(sql, [id]);
+    return result;
   },
 
-  // authenticate(email, password, cb) - callback style
+  // Hybrid authenticate method supporting both async and callback styles
   authenticate: function (email, password, cb) {
+    // callback style (for backward compatibility)
+    if (typeof cb === 'function') {
+      UserModel._authenticateAsync(email, password)
+        .then(user => cb(null, user))
+        .catch(err => cb(err));
+      return;
+    }
+
+    // promise style (for controllers using async/await)
+    return UserModel._authenticateAsync(email, password);
+  },
+
+  // Internal async implementation for authenticate
+  _authenticateAsync: async function (email, password) {
     const sql = 'SELECT id, username, email, role FROM users WHERE email = ? AND password = SHA1(?)';
-    db.query(sql, [email, password], function (err, results) {
-      if (typeof cb === 'function') cb(err, results && results.length ? results[0] : null);
-    });
+    const [results] = await db.query(sql, [email, password]);
+    return results && results.length ? results[0] : null;
   }
 };
 

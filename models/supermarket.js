@@ -1,90 +1,136 @@
 const db = require('../db');
 
 const SupermarketModel = {
-  // params: { limit, offset } optional; cb(err, results)
-  getAllProducts: function (params, cb) {
-    let sql = 'SELECT id, productName, quantity, price, image FROM products';
-    const values = [];
+  // Async version: get all products with optional pagination
+  getAllProducts: async function (params, cb) {
+    try {
+      let sql = 'SELECT id, productName, quantity, price, image FROM products';
+      const values = [];
 
-    if (params && (params.limit !== undefined || params.offset !== undefined)) {
-      sql += ' LIMIT ? OFFSET ?';
-      values.push(
-        params.limit !== undefined ? parseInt(params.limit, 10) : 100,
-        params.offset !== undefined ? parseInt(params.offset, 10) : 0
-      );
+      if (params && (params.limit !== undefined || params.offset !== undefined)) {
+        sql += ' LIMIT ? OFFSET ?';
+        values.push(
+          params.limit !== undefined ? parseInt(params.limit, 10) : 100,
+          params.offset !== undefined ? parseInt(params.offset, 10) : 0
+        );
+      }
+
+      const [results] = await db.query(sql, values);
+      // Support both callback and promise-based usage
+      if (typeof cb === 'function') {
+        cb(null, results);
+      }
+      return results;
+    } catch (err) {
+      if (typeof cb === 'function') {
+        cb(err);
+      }
+      throw err;
     }
-
-    db.query(sql, values, function (err, results) {
-      cb(err, results);
-    });
   },
 
-  // params: { productId } or numeric id; cb(err, product)
+  // Hybrid version: get product by ID (callback or promise)
   getProductById: function (params, cb) {
     const id = (typeof params === 'object') ? (params.productId || params.id) : params;
+    
+    // For callback style (backward compatibility)
+    if (typeof cb === 'function') {
+      SupermarketModel._getProductByIdAsync(id)
+        .then(product => cb(null, product))
+        .catch(err => cb(err));
+      return;
+    }
+
+    // For promise style
+    return SupermarketModel._getProductByIdAsync(id);
+  },
+
+  _getProductByIdAsync: async function (id) {
     const sql = 'SELECT id, productName, quantity, price, image FROM products WHERE id = ?';
-    db.query(sql, [id], function (err, results) {
-      if (err) return cb(err);
-      cb(null, results && results.length ? results[0] : null);
-    });
+    const [results] = await db.query(sql, [id]);
+    return results && results.length ? results[0] : null;
   },
 
-  // params: { productName, quantity, price, image }, cb(err, result)
-  addProduct: function (params, cb) {
-    if (!params) return cb && cb(new Error('Missing product params'));
-    const productName = params.productName || params.name || null;
-    const quantity = typeof params.quantity === 'number' ? params.quantity : Number(params.quantity) || 0;
-    const price = typeof params.price === 'number' ? params.price : Number(params.price) || 0;
-    const image = params.image || null;
-
-    const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
-    db.query(sql, [productName, quantity, price, image], function (err, result) {
-      if (typeof cb === 'function') cb(err, result);
-    });
-  },
-
-  // params: { productId, productName, quantity, price, image }; cb(err, result)
-  updateProduct: function (params, cb) {
-    const sql = 'UPDATE products SET productName = ?, quantity = ?, price = ?, image = ? WHERE id = ?';
-    const values = [
-      params.productName,
-      params.quantity,
-      params.price,
-      params.image,
-      params.productId || params.id
-    ];
-    db.query(sql, values, function (err, result) {
-      if (err) {
-        console.error('MODEL updateProduct ERROR:', err);
-        return cb(err);
+  // Async version: add product
+  addProduct: async function (params, cb) {
+    try {
+      if (!params) {
+        const err = new Error('Missing product params');
+        if (typeof cb === 'function') return cb(err);
+        throw err;
       }
-      cb(null, result);
-    });
+
+      const productName = params.productName || params.name || null;
+      const quantity = typeof params.quantity === 'number' ? params.quantity : Number(params.quantity) || 0;
+      const price = typeof params.price === 'number' ? params.price : Number(params.price) || 0;
+      const image = params.image || null;
+
+      const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
+      const [result] = await db.query(sql, [productName, quantity, price, image]);
+      
+      if (typeof cb === 'function') cb(null, result);
+      return result;
+    } catch (err) {
+      if (typeof cb === 'function') cb(err);
+      throw err;
+    }
   },
 
-  // params: { productId } or numeric id; cb(err, result)
+  // Async version: update product
+  updateProduct: async function (params, cb) {
+    try {
+      const sql = 'UPDATE products SET productName = ?, quantity = ?, price = ?, image = ? WHERE id = ?';
+      const values = [
+        params.productName,
+        params.quantity,
+        params.price,
+        params.image,
+        params.productId || params.id
+      ];
+      const [result] = await db.query(sql, values);
+      
+      if (typeof cb === 'function') cb(null, result);
+      return result;
+    } catch (err) {
+      console.error('MODEL updateProduct ERROR:', err);
+      if (typeof cb === 'function') cb(err);
+      throw err;
+    }
+  },
+
+  // Hybrid version: delete product (callback or promise)
   deleteProduct: function (params, cb) {
     const id = (typeof params === 'object') ? (params.productId || params.id) : params;
-    const sql = 'DELETE FROM products WHERE id = ?';
-    db.query(sql, [id], function (err, result) {
-      cb(err, result);
-    });
-  }
+    
+    if (typeof cb === 'function') {
+      SupermarketModel._deleteProductAsync(id)
+        .then(result => cb(null, result))
+        .catch(err => cb(err));
+      return;
+    }
 
-  // Decrement stock for a product by amount. Calls back with (err, result).
-  // This uses GREATEST to avoid negative quantities but it's recommended to check availability before calling.
-  ,decrementStock: function (productId, amount, cb) {
-    const qty = Number(amount || 0);
-    // perform atomic decrement only if enough stock exists
-    const sql = 'UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?';
-    db.query(sql, [qty, productId, qty], function (err, result) {
-      if (err) {
-        if (typeof cb === 'function') return cb(err);
-        return;
-      }
-      // result.affectedRows indicates whether the update succeeded
+    return SupermarketModel._deleteProductAsync(id);
+  },
+
+  _deleteProductAsync: async function (id) {
+    const sql = 'DELETE FROM products WHERE id = ?';
+    const [result] = await db.query(sql, [id]);
+    return result;
+  },
+
+  // Async version: decrement stock
+  decrementStock: async function (productId, amount, cb) {
+    try {
+      const qty = Number(amount || 0);
+      const sql = 'UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?';
+      const [result] = await db.query(sql, [qty, productId, qty]);
+      
       if (typeof cb === 'function') cb(null, result);
-    });
+      return result;
+    } catch (err) {
+      if (typeof cb === 'function') cb(err);
+      throw err;
+    }
   }
 };
 

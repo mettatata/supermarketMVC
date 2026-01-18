@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Your Cart</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=SGD"></script>
 </head>
 <body>
     <%- include('partials/navbar') %>
@@ -56,20 +57,93 @@
           <% }; %>
         </tbody>
       </table>
-      <h4>Total: $<%= total.toFixed(2) %></h4>
+      <h4 id="cartTotal">Total: $<%= total.toFixed(2) %></h4>
       <div class="mt-4">
         <a href="/shopping" class="btn btn-secondary">Back to Shopping</a>
       </div>
 
-      <div class="mt-3 d-flex gap-2">
-        <form action="/orders" method="POST" style="display:inline-block;">
-          <button type="submit" class="btn btn-primary">Checkout</button>
-        </form>
+      <!-- PayPal Button Container -->
+      <div class="mt-3">
+        <div id="paypal-button-container"></div>
+      </div>
 
+      <div class="mt-3">
         <form action="/cart/clear" method="POST" style="display:inline-block;">
           <button type="submit" class="btn btn-outline-danger">Clear Cart</button>
         </form>
       </div>
+
+      <!-- PayPal Integration Script -->
+      <script>
+        // Make the cart array available in JS (product IDs)
+        const cart = <%- JSON.stringify(cart.map(item => item.productId)) %>;
+        const totalAmount = '<%= total.toFixed(2) %>';
+
+        function renderPaypalButtons() {
+          paypal.Buttons({
+            createOrder: function (data, actions) {
+              return fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ amount: totalAmount })
+              })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success && data.orderId) {
+                    return data.orderId;
+                  } else {
+                    throw new Error('Failed to create order');
+                  }
+                });
+            },
+            onApprove: function (data, actions) {
+              return fetch('/api/paypal/pay', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                  orderId: data.orderID,
+                  cartItemIds: cart 
+                })
+              })
+                .then(res => res.json())
+                .then(details => {
+                  if (details.success) {
+                    // Redirect to orders page after successful payment
+                    alert('Payment successful! Order ID: ' + details.orderId);
+                    window.location.href = "/orders";
+                  } else {
+                    alert('Payment not completed: ' + (details.error || 'Unknown error'));
+                  }
+                })
+                .catch(err => {
+                  console.error('Payment error:', err);
+                  alert('Payment processing failed. Please try again.');
+                });
+            },
+            onClick: function (data, actions) {
+              if (!cart.length) {
+                alert('Your cart is empty. Please add items to cart before paying.');
+                return actions.reject();
+              }
+              return actions.resolve();
+            },
+            onError: function (err) {
+              console.error('PayPal error:', err);
+              alert('An error occurred with PayPal. Please try again.');
+            }
+          }).render('#paypal-button-container');
+        }
+
+        if (cart.length) {
+          renderPaypalButtons();
+        } else {
+          document.getElementById('paypal-button-container').style.display = 'none';
+        }
+      </script>
     <% } %>
   </div>
 </body>
