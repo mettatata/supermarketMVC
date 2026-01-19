@@ -2,6 +2,7 @@ const Transaction = require("../models/transaction");
 const CartItems = require('../models/cartitems');
 const Orders = require('../models/order');
 const OrderDetails = require('../models/orderdetails');
+const SupermarketModel = require('../models/supermarket');
 const paypal = require('../services/paypal');
 
 module.exports = {
@@ -142,6 +143,29 @@ module.exports = {
 
       // Add order items to order_details
       await Orders.addOrderItems(dbOrderId, orderItems);
+
+      // Decrement stock for each product ordered
+      console.log(`[paymentController.pay] Decrementing stock for ${orderItems.length} items...`);
+      const failedDecrements = [];
+      for (let item of orderItems) {
+        try {
+          console.log(`[paymentController.pay] Decrementing productId ${item.productId} by ${item.quantity}`);
+          const result = await SupermarketModel.decrementStock(item.productId, item.quantity);
+          if (!result || !result.affectedRows || result.affectedRows === 0) {
+            console.error(`[paymentController.pay] Stock decrement failed for productId ${item.productId}`);
+            failedDecrements.push({ productId: item.productId, quantity: item.quantity });
+          } else {
+            console.log(`[paymentController.pay] ✓ Stock decremented for productId ${item.productId}`);
+          }
+        } catch (decrementErr) {
+          console.error(`[paymentController.pay] Error decrementing stock for productId ${item.productId}:`, decrementErr);
+          failedDecrements.push({ productId: item.productId, quantity: item.quantity, error: decrementErr.message });
+        }
+      }
+
+      if (failedDecrements.length > 0) {
+        console.warn(`[paymentController.pay] ${failedDecrements.length} stock decrements failed:`, failedDecrements);
+      }
 
       // Get cart item IDs to remove
       const cartItemIds = items.map(item => item.productId);

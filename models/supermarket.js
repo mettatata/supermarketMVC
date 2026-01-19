@@ -121,13 +121,29 @@ const SupermarketModel = {
   // Async version: decrement stock
   decrementStock: async function (productId, amount, cb) {
     try {
+      const productIdNum = Number(productId);
       const qty = Number(amount || 0);
-      const sql = 'UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?';
-      const [result] = await db.query(sql, [qty, productId, qty]);
+      
+      console.log(`[decrementStock] productId=${productIdNum}, amount=${qty}`);
+      
+      if (qty <= 0) {
+        console.log(`[decrementStock] Skipping: amount is ${qty} (must be > 0)`);
+        const result = { affectedRows: 0 };
+        if (typeof cb === 'function') cb(null, result);
+        return result;
+      }
+      
+      const sql = 'UPDATE products SET quantity = quantity - ? WHERE id = ?';
+      console.log(`[decrementStock] Executing: UPDATE products SET quantity = quantity - ${qty} WHERE id = ${productIdNum}`);
+      
+      const [result] = await db.query(sql, [qty, productIdNum]);
+      
+      console.log(`[decrementStock] Result: affectedRows=${result?.affectedRows}, changedRows=${result?.changedRows}`);
       
       if (typeof cb === 'function') cb(null, result);
       return result;
     } catch (err) {
+      console.error(`[decrementStock] ERROR:`, err);
       if (typeof cb === 'function') cb(err);
       throw err;
     }

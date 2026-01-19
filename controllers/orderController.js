@@ -83,22 +83,26 @@ const OrderController = {
         total: r.total || (r.price * r.quantity) || 0
       }));
 
+      console.log(`[createOrder] Order ${orderId}: About to decrement stock for ${items.length} items:`, JSON.stringify(items, null, 2));
+
       // Add order items
       await Orders.addOrderItems(orderId, items);
 
       // decrement stock for each product
       const failedDecrements = [];
+      const successfulDecrements = [];
       for (let it of items) {
         try {
-          console.log('Decrementing stock for', it.productId, 'by', it.quantity);
+          console.log(`Decrementing stock for product ${it.productId} by ${it.quantity} units`);
           const dsRes = await SupermarketModel.decrementStock(it.productId, it.quantity);
           
           const affected = (dsRes && typeof dsRes.affectedRows === 'number') ? dsRes.affectedRows : null;
-          if (!affected) {
-            console.error('Stock not decremented (insufficient quantity) for', it.productId, 'wanted', it.quantity);
-            failedDecrements.push({ productId: it.productId, error: 'insufficient_quantity' });
+          if (!affected || affected === 0) {
+            console.error(`Stock not decremented (insufficient quantity or product not found) for productId: ${it.productId}, requested: ${it.quantity}`);
+            failedDecrements.push({ productId: it.productId, requested: it.quantity, error: 'insufficient_quantity_or_not_found' });
           } else {
-            console.log('Stock decremented for', it.productId, 'affectedRows=', affected);
+            console.log(`✓ Stock decremented for productId: ${it.productId}, affectedRows: ${affected}`);
+            successfulDecrements.push({ productId: it.productId, quantity: it.quantity });
           }
         } catch (dsErr) {
           console.error('Failed to decrement stock for', it.productId, dsErr);
@@ -109,10 +113,13 @@ const OrderController = {
       if (failedDecrements.length) {
         console.error('Some stock decrements failed:', failedDecrements);
         req.flash && req.flash('error', 'Order placed but some product stock updates failed. Contact support.');
+      } else {
+        console.log(`All stock decrements successful: ${successfulDecrements.length} products updated`);
       }
 
       // clear cart and finish
-      return clearUserCartAndSession(userId, req, res, '/orders');
+      await clearUserCartAndSession(userId, req, res, '/orders');
+      return;
     } catch (err) {
       console.error('Error creating order:', err);
       req.flash && req.flash('error', 'Unable to create order.');
@@ -142,19 +149,24 @@ const OrderController = {
 
 module.exports = OrderController;
 
-function clearUserCartAndSession(userId, req, res, nextRedirect='/orders') {
-  cartitems.clear(userId, (err) => {
-    if (err) console.error('Failed to clear cart after order:', err);
-    if (req.session) {
-      req.session.cart = [];
-      req.session.save(saveErr => {
-        if (saveErr) console.error('Session save error:', saveErr);
-        req.flash && req.flash('success', 'Order placed successfully.');
-        res.redirect(nextRedirect);
+async function clearUserCartAndSession(userId, req, res, nextRedirect = '/orders') {
+  try {
+    await cartitems.clear(userId);
+  } catch (err) {
+    console.error('Failed to clear cart after order:', err);
+  }
+
+  if (req.session) {
+    req.session.cart = [];
+    try {
+      await new Promise((resolve, reject) => {
+        req.session.save(saveErr => (saveErr ? reject(saveErr) : resolve()));
       });
-    } else {
-      req.flash && req.flash('success', 'Order placed successfully.');
-      res.redirect(nextRedirect);
+    } catch (saveErr) {
+      console.error('Session save error:', saveErr);
     }
-  });
+  }
+
+  req.flash && req.flash('success', 'Order placed successfully.');
+  res.redirect(nextRedirect);
 }
