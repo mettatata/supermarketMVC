@@ -67,6 +67,14 @@
         <div id="paypal-button-container"></div>
       </div>
 
+      <!-- NETS QR Button -->
+      <div class="mt-3">
+        <form action="/generateNETSQR" method="POST">
+          <input type="hidden" name="cartTotal" value="<%= total.toFixed(2) %>">
+          <button type="submit" class="btn btn-primary">Pay with NETS QR</button>
+        </form>
+      </div>
+
       <div class="mt-3">
         <form action="/cart/clear" method="POST" style="display:inline-block;">
           <button type="submit" class="btn btn-outline-danger">Clear Cart</button>

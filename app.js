@@ -6,6 +6,9 @@ const flash = require('connect-flash');
 const multer = require('multer');
 const app = express();
 const { checkAuthenticated, checkAuthorised, validateRegistration} = require('./middleware');
+const bodyParser = require("body-parser");
+const netsQr= require("./services/nets");
+const axios = require('axios');
 
 // controllers
 const supermarketController = require('./controllers/supermarketControllers');
@@ -147,6 +150,77 @@ app.get('/orders/:id', orderDetailsController.showOrderDetails);
 // Payment routes (PayPal integration)
 app.post('/api/paypal/create-order', checkAuthenticated, paymentController.createOrder);
 app.post('/api/paypal/pay', checkAuthenticated, paymentController.pay);
+
+// NETS completion
+app.post('/api/nets/success', checkAuthenticated, netsQr.completePayment);
+
+// NETS QR
+app.get('/', (req, res) => { res.render('shopping', { user: req.session.user }); });
+app.post('/generateNETSQR', checkAuthenticated, netsQr.generateQrCode);
+
+app.get('/nets-qr/success', (req, res) => {
+  res.render('netsTxnSuccessStatus', { message: 'Transaction Successful!' });
+});
+app.get('/nets-qr/fail', (req, res) => {
+  res.render('netsTxnFailStatus', { message: 'Transaction Failed. Please try again.' });
+});
+
+// SSE payment status stream
+app.get('/sse/payment-status/:txnRetrievalRef', async (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+
+  const txnRetrievalRef = req.params.txnRetrievalRef;
+  let pollCount = 0;
+  const maxPolls = 60; // 5 minutes at 5s interval
+  let frontendTimeoutStatus = 0;
+
+  const interval = setInterval(async () => {
+    pollCount++;
+    try {
+      const response = await axios.post(
+        'https://sandbox.nets.openapipaas.com/api/v1/common/payments/nets-qr/query',
+        { txn_retrieval_ref: txnRetrievalRef, frontend_timeout_status: frontendTimeoutStatus },
+        {
+          headers: {
+            'api-key': process.env.API_KEY,
+            'project-id': process.env.PROJECT_ID,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.write(`data: ${JSON.stringify(response.data)}\n\n`);
+
+      const resData = response.data.result.data;
+      if (resData.response_code === "00" && resData.txn_status === 1) {
+        res.write(`data: ${JSON.stringify({ success: true })}\n\n`);
+        clearInterval(interval);
+        res.end();
+      } else if (frontendTimeoutStatus === 1 && resData && (resData.response_code !== "00" || resData.txn_status === 2)) {
+        res.write(`data: ${JSON.stringify({ fail: true, ...resData })}\n\n`);
+        clearInterval(interval);
+        res.end();
+      }
+    } catch (err) {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    }
+
+    if (pollCount >= maxPolls) {
+      clearInterval(interval);
+      frontendTimeoutStatus = 1;
+      res.write(`data: ${JSON.stringify({ fail: true, error: "Timeout" })}\n\n`);
+      res.end();
+    }
+  }, 5000);
+
+  req.on('close', () => clearInterval(interval));
+});
 
 // Start server
 const PORT = process.env.PORT || 3000;
