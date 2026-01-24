@@ -97,6 +97,8 @@ app.post('/add-to-cart/:id', checkAuthenticated, cartController.addToCart);
 
 // View cart (use controller)
 app.get('/cart', checkAuthenticated, cartController.list);
+// Checkout page
+app.get('/checkout', checkAuthenticated, cartController.showCheckout);
 // Remove entire item from cart
 app.post('/cart/delete/:id', checkAuthenticated, cartController.removeFromCart);
 app.post('/cart/clear',checkAuthenticated,cartController.clearCart);
@@ -143,6 +145,13 @@ app.post('/user/add', checkAuthenticated, checkAuthorised(['admin']), adminContr
 // Order: create order from cart
 app.post('/orders', checkAuthenticated, orderController.createOrder);
 app.get('/orders', checkAuthenticated, orderController.listOrders);
+
+// Thank you page after successful payment
+app.get('/thankyou', checkAuthenticated, (req, res) => {
+  const orderId = req.query.orderId || null;
+  res.render('thanku', { user: req.session.user, orderId });
+});
+
 // Order details page
 app.get('/orderdetails', checkAuthenticated, orderDetailsController.showOrderDetails);
 app.get('/orders/:id', orderDetailsController.showOrderDetails);

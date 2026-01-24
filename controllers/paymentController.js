@@ -3,6 +3,7 @@ const CartItems = require('../models/cartitems');
 const Orders = require('../models/order');
 const OrderDetails = require('../models/orderdetails');
 const SupermarketModel = require('../models/supermarket');
+const UserModel = require('../models/user');
 const paypal = require('../services/paypal');
 
 module.exports = {
@@ -129,8 +130,13 @@ module.exports = {
       // Calculate total amount
       const totalAmount = items.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
+        // Use provided address, fallback to user profile
+        const providedAddress = (req.body.address || '').trim();
+        const user = await UserModel.getUserById({ id: userId });
+        const userAddress = providedAddress || (user && user.address ? user.address : null);
+
       // Create order in database
-      const orderResult = await Orders.createOrder(userId, totalAmount);
+        const orderResult = await Orders.createOrder(userId, totalAmount, userAddress);
       const dbOrderId = orderResult.insertId;
 
       // Prepare order items
@@ -142,7 +148,7 @@ module.exports = {
       }));
 
       // Add order items to order_details
-      await Orders.addOrderItems(dbOrderId, orderItems);
+      await Orders.addOrderItems(dbOrderId, orderItems, userAddress);
 
       // Decrement stock for each product ordered
       console.log(`[paymentController.pay] Decrementing stock for ${orderItems.length} items...`);

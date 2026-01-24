@@ -60,19 +60,7 @@
       <h4 id="cartTotal">Total: $<%= total.toFixed(2) %></h4>
       <div class="mt-4">
         <a href="/shopping" class="btn btn-secondary">Back to Shopping</a>
-      </div>
-
-      <!-- PayPal Button Container -->
-      <div class="mt-3">
-        <div id="paypal-button-container"></div>
-      </div>
-
-      <!-- NETS QR Button -->
-      <div class="mt-3">
-        <form action="/generateNETSQR" method="POST">
-          <input type="hidden" name="cartTotal" value="<%= total.toFixed(2) %>">
-          <button type="submit" class="btn btn-primary">Pay with NETS QR</button>
-        </form>
+        <a href="/checkout" class="btn btn-success ms-2">Proceed to Checkout</a>
       </div>
 
       <div class="mt-3">
@@ -81,77 +69,7 @@
         </form>
       </div>
 
-      <!-- PayPal Integration Script -->
-      <script>
-        // Make the cart array available in JS (product IDs)
-        const cart = <%- JSON.stringify(cart.map(item => item.productId)) %>;
-        const totalAmount = '<%= total.toFixed(2) %>';
 
-        function renderPaypalButtons() {
-          paypal.Buttons({
-            createOrder: function (data, actions) {
-              return fetch('/api/paypal/create-order', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ amount: totalAmount })
-              })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.success && data.orderId) {
-                    return data.orderId;
-                  } else {
-                    throw new Error('Failed to create order');
-                  }
-                });
-            },
-            onApprove: function (data, actions) {
-              return fetch('/api/paypal/pay', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                  orderId: data.orderID,
-                  cartItemIds: cart 
-                })
-              })
-                .then(res => res.json())
-                .then(details => {
-                  if (details.success) {
-                    // Redirect to orders page after successful payment
-                    alert('Payment successful! Order ID: ' + details.orderId);
-                    window.location.href = "/orders";
-                  } else {
-                    alert('Payment not completed: ' + (details.error || 'Unknown error'));
-                  }
-                })
-                .catch(err => {
-                  console.error('Payment error:', err);
-                  alert('Payment processing failed. Please try again.');
-                });
-            },
-            onClick: function (data, actions) {
-              if (!cart.length) {
-                alert('Your cart is empty. Please add items to cart before paying.');
-                return actions.reject();
-              }
-              return actions.resolve();
-            },
-            onError: function (err) {
-              console.error('PayPal error:', err);
-              alert('An error occurred with PayPal. Please try again.');
-            }
-          }).render('#paypal-button-container');
-        }
-
-        if (cart.length) {
-          renderPaypalButtons();
-        } else {
-          document.getElementById('paypal-button-container').style.display = 'none';
-        }
-      </script>
     <% } %>
   </div>
 </body>

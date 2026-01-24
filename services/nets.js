@@ -3,13 +3,14 @@ const CartItems = require('../models/cartitems');
 const Orders = require('../models/order');
 const SupermarketModel = require('../models/supermarket');
 const Transaction = require('../models/transaction');
+const UserModel = require('../models/user');
 
 function nowAsMysql() {
   return new Date().toISOString().replace('T', ' ').replace('Z', '');
 }
 
 exports.generateQrCode = async (req, res) => {
-  const { cartTotal } = req.body;
+  const { cartTotal, address } = req.body;
   console.log(cartTotal);
   try {
     const requestBody = {
@@ -68,6 +69,7 @@ exports.generateQrCode = async (req, res) => {
           amount: cartTotal,
           txnRetrievalRef: txnRetrievalRef
         };
+        req.session.netsAddress = address || '';
       }
 
       // Render the QR code page with required data
@@ -124,8 +126,13 @@ exports.completePayment = async (req, res) => {
 
     const totalAmount = items.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
+      // Get user address
+      const userInfo = await UserModel.getUserById({ id: userId });
+      const sessionAddress = req.session && req.session.netsAddress ? req.session.netsAddress.trim() : '';
+      const userAddress = sessionAddress || (userInfo && userInfo.address ? userInfo.address : null);
+
     // Create order
-    const orderResult = await Orders.createOrder(userId, totalAmount);
+      const orderResult = await Orders.createOrder(userId, totalAmount, userAddress);
     const orderId = orderResult.insertId;
 
     // Prepare order items
@@ -136,7 +143,7 @@ exports.completePayment = async (req, res) => {
       total: item.total
     }));
 
-    await Orders.addOrderItems(orderId, orderItems);
+    await Orders.addOrderItems(orderId, orderItems, userAddress);
 
     // Decrement stock
     const failedDecrements = [];
@@ -152,10 +159,11 @@ exports.completePayment = async (req, res) => {
     }
 
     // Record transaction
+    const payerEmail = userInfo?.email || user?.email || 'unknown@customer.local';
     await Transaction.create({
       orderId,
       payerId: pending.txnRetrievalRef || null,
-      payerEmail: null,
+      payerEmail: payerEmail,
       amount: totalAmount,
       currency: 'SGD',
       status: failedDecrements.length ? 'COMPLETED_WITH_WARNINGS' : 'COMPLETED',
@@ -167,6 +175,7 @@ exports.completePayment = async (req, res) => {
     if (req.session) {
       req.session.cart = [];
       req.session.netsPending = null;
+      req.session.netsAddress = null;
       try { await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve())); } catch (e) { console.error('Session save error:', e); }
     }
 

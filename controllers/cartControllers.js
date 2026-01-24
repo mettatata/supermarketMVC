@@ -211,6 +211,70 @@ const CartController = {
       req.flash && req.flash('error', 'Could not clear cart');
       return res.redirect('/cart');
     }
+  },
+
+  // Show checkout page with cart items and shipping form
+  showCheckout: async function (req, res) {
+    try {
+      const user = req.session && req.session.user;
+      if (!user) {
+        req.flash && req.flash('error', 'Please log in to checkout.');
+        return res.redirect('/login');
+      }
+
+      const userId = (user.userId || user.id);
+      const rows = await cartitems.getByUserId(userId);
+
+      if (!rows || !rows.length) {
+        req.flash && req.flash('error', 'Your cart is empty.');
+        return res.redirect('/cart');
+      }
+
+      const cart = [];
+      for (let row of rows) {
+        const product = await new Promise((resolve, reject) => {
+          SupermarketModel.getProductById({ id: row.productId }, (err2, product) => {
+            if (err2) {
+              console.error('getProductById error in checkout:', err2);
+              resolve(null);
+            } else {
+              resolve(product);
+            }
+          });
+        });
+
+        if (Array.isArray(product)) {
+          const p = product[0];
+          const item = {
+            productId: String(row.productId),
+            productName: p ? (p.productName || p.name) : 'Unknown',
+            price: Number(p ? (p.price || 0) : 0),
+            image: p ? p.image : null,
+            quantity: Number(row.quantity || 0)
+          };
+          cart.push(item);
+        } else {
+          const item = {
+            productId: String(row.productId),
+            productName: product ? (product.productName || product.name) : 'Unknown',
+            price: Number(product ? (product.price || 0) : 0),
+            image: product ? product.image : null,
+            quantity: Number(row.quantity || 0)
+          };
+          cart.push(item);
+        }
+      }
+
+      return res.render('checkout', { 
+        user, 
+        cart, 
+        paypalClientId: process.env.PAYPAL_CLIENT_ID 
+      });
+    } catch (err) {
+      console.error('showCheckout error:', err);
+      req.flash && req.flash('error', 'Unable to load checkout.');
+      return res.redirect('/cart');
+    }
   }
 };
 

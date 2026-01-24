@@ -2,10 +2,23 @@
 <html>
 <head>
     <title>Transaction Successful</title>
+    <script>
+        // Redirect to thank you page after 2 seconds, passing orderId
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            if (orderId) {
+                window.location.href = '/thankyou?orderId=' + orderId;
+            } else {
+                window.location.href = '/thankyou';
+            }
+        }, 2000);
+    </script>
 </head>
 <body>
     <h1><%= message %></h1>
     <p>Thank you for your payment!</p>
     <img height="auto" width="20%" src="../images/greenTick.png" /><br />
+    <p>Redirecting to your order details...</p>
 </body>
 </html>

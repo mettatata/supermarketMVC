@@ -48,11 +48,14 @@
                 const data = await resp.json();
                 if (!data.success) {
                     console.error('NETS completion error:', data);
+                    window.location.href = '/nets-qr/fail?txn_retrieval_ref=' + txnRetrievalRef;
+                    return;
                 }
+                window.location.href = '/nets-qr/success?orderId=' + data.orderId;
             } catch (e) {
                 console.error('Failed to finalize NETS order:', e);
+                window.location.href = '/nets-qr/fail?txn_retrieval_ref=' + txnRetrievalRef;
             }
-            window.location.href = '/orders';
         }
 
         s2sNetsTxnStatus.addEventListener("message", async (event) => {

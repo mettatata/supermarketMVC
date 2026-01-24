@@ -1,6 +1,7 @@
 const cartitems = require('../models/cartitems');
 const Orders = require('../models/order');
 const SupermarketModel = require('../models/supermarket');
+const UserModel = require('../models/user');
 
 const OrderController = {
   // POST /order
@@ -71,8 +72,12 @@ const OrderController = {
       // compute total from adjusted cart rows
       const totalAmount = finalRows.reduce((sum, r) => sum + Number(r.total || (r.price * r.quantity) || 0), 0);
 
+      // load user address for order records
+      const userInfo = await UserModel.getUserById({ id: userId });
+      const userAddress = userInfo && userInfo.address ? userInfo.address : null;
+
       // create order row
-      const result = await Orders.createOrder(userId, totalAmount);
+      const result = await Orders.createOrder(userId, totalAmount, userAddress);
       const orderId = result && result.insertId;
       
       // prepare order_items payload
@@ -86,7 +91,7 @@ const OrderController = {
       console.log(`[createOrder] Order ${orderId}: About to decrement stock for ${items.length} items:`, JSON.stringify(items, null, 2));
 
       // Add order items
-      await Orders.addOrderItems(orderId, items);
+      await Orders.addOrderItems(orderId, items, userAddress);
 
       // decrement stock for each product
       const failedDecrements = [];

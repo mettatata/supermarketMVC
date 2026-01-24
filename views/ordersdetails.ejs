@@ -29,6 +29,10 @@
     <% if (typeof orderDetails !== 'undefined' && orderDetails && orderDetails.length) { %>
       <h4>Order ID: <%= order ? (order.orderid || order.id) : '' %></h4>
       <p>Placed: <%= order && order.created_at ? new Date(order.created_at).toLocaleString() : '' %></p>
+        <div class="mb-3">
+          <strong>Shipping Address:</strong><br>
+          <%= order && order.address ? order.address : 'No address provided' %>
+        </div>
       <table class="table table-striped">
         <thead>
           <tr>
