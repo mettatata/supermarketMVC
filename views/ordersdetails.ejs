@@ -33,6 +33,18 @@
           <strong>Shipping Address:</strong><br>
           <%= order && order.address ? order.address : 'No address provided' %>
         </div>
+
+        <% if (paymentMethod) { %>
+        <div class="mb-3">
+          <strong>Payment Method:</strong> <%= paymentMethod %>
+        </div>
+        <% } %>
+        <% if (transaction && transaction.captureId) { %>
+        <div class="mb-3">
+          <strong>Payment Reference:</strong> <%= transaction.captureId %>
+        </div>
+        <% } %>
+
       <table class="table table-striped">
         <thead>
           <tr>

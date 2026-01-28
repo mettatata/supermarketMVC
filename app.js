@@ -7,7 +7,6 @@ const multer = require('multer');
 const app = express();
 const { checkAuthenticated, checkAuthorised, validateRegistration} = require('./middleware');
 const bodyParser = require("body-parser");
-const netsQr= require("./services/nets");
 const axios = require('axios');
 
 // controllers
@@ -40,7 +39,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // views & body parsing
 app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // <-- ensure this is present
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -132,6 +131,9 @@ app.get('/deleteProduct/:id', checkAuthenticated, checkAuthorised(['admin']), su
 // Admin dashboard - list users
 app.get('/admin', checkAuthenticated, checkAuthorised(['admin']), adminController.listUsers);
 
+// Admin orders report
+app.get('/admin/orders-report', checkAuthenticated, checkAuthorised(['admin']), adminController.ordersReport);
+
 // legacy / navbar link: support /adminDashboard path used in views
 app.get('/adminDashboard', checkAuthenticated, checkAuthorised(['admin']), adminController.listUsers);
 
@@ -147,10 +149,7 @@ app.post('/orders', checkAuthenticated, orderController.createOrder);
 app.get('/orders', checkAuthenticated, orderController.listOrders);
 
 // Thank you page after successful payment
-app.get('/thankyou', checkAuthenticated, (req, res) => {
-  const orderId = req.query.orderId || null;
-  res.render('thanku', { user: req.session.user, orderId });
-});
+app.get('/thankyou', checkAuthenticated, paymentController.showThankYou);
 
 // Order details page
 app.get('/orderdetails', checkAuthenticated, orderDetailsController.showOrderDetails);
@@ -160,12 +159,9 @@ app.get('/orders/:id', orderDetailsController.showOrderDetails);
 app.post('/api/paypal/create-order', checkAuthenticated, paymentController.createOrder);
 app.post('/api/paypal/pay', checkAuthenticated, paymentController.pay);
 
-// NETS completion
-app.post('/api/nets/success', checkAuthenticated, netsQr.completePayment);
-
-// NETS QR
-app.get('/', (req, res) => { res.render('shopping', { user: req.session.user }); });
-app.post('/generateNETSQR', checkAuthenticated, netsQr.generateQrCode);
+// NETS QR (now handled by paymentController for consistency with PayPal)
+app.post('/generateNETSQR', checkAuthenticated, paymentController.generateNETSQR);
+app.post('/api/nets/success', checkAuthenticated, paymentController.completeNETSPayment);
 
 app.get('/nets-qr/success', (req, res) => {
   res.render('netsTxnSuccessStatus', { message: 'Transaction Successful!' });

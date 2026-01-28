@@ -1,4 +1,5 @@
 const UserModel = require('../models/user');
+const Orders = require('../models/order');
 
 const AdminController = {
   // GET /admin - show user management dashboard
@@ -82,6 +83,32 @@ const AdminController = {
       req.flash && req.flash('error', 'Unable to create user.');
       req.flash && req.flash('formData', req.body);
       return res.redirect('/user/add');
+    }
+  },
+
+  // GET /admin/orders-report - view orders analytics
+  ordersReport: async function (req, res) {
+    const user = req.session && req.session.user;
+    try {
+      const selectedMonth = (req.query && req.query.month ? String(req.query.month).trim() : '') || null;
+
+      const totalOrders = await Orders.getTotalOrdersCount(selectedMonth);
+      const totalSales = await Orders.getTotalSalesAmount(selectedMonth);
+      const topProducts = await Orders.getTopProductsBySales(5, selectedMonth);
+      const allOrders = await Orders.getAllOrders(selectedMonth);
+
+      return res.render('adminreport', {
+        user: user,
+        totalOrders: totalOrders,
+        totalSales: totalSales.toFixed(2),
+        topProducts: topProducts,
+        allOrders: allOrders,
+        selectedMonth: selectedMonth
+      });
+    } catch (err) {
+      console.error('AdminController.ordersReport error:', err);
+      req.flash && req.flash('error', 'Could not load orders report. ' + err.message);
+      return res.redirect('/admin');
     }
   }
 };

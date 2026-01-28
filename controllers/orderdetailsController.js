@@ -1,8 +1,8 @@
 const Orders = require('../models/order');
 const OrderDetails = require('../models/orderdetails');
+const Transaction = require('../models/transaction');
 
 const OrderDetailsController = {
-  // GET /orderdetails?orderId=123
   async showOrderDetails(req, res) {
     const user = req.session && req.session.user;
     if (!user) {
@@ -48,13 +48,27 @@ const OrderDetailsController = {
 
       const grandTotal = mappedItems.reduce((s, it) => s + (it.lineTotal || 0), 0);
 
+      // Fetch transaction to get payment method
+      const transaction = await Transaction.getByOrderId(orderId);
+      let paymentMethod = 'N/A';
+      if (transaction) {
+        // Determine payment method from payerId field
+        if (transaction.payerId === 'NETS') {
+          paymentMethod = 'NETS QR';
+        } else if (transaction.payerId || transaction.payerEmail) {
+          paymentMethod = 'PayPal';
+        }
+      }
+
       return res.render('ordersdetails', {
         user: user,
         order: order,
         orderId: orderId,
         orderDetails: mappedItems,
         timestamp: order.created_at,
-        grandTotal: grandTotal
+        grandTotal: grandTotal,
+        transaction: transaction,
+        paymentMethod: paymentMethod
       });
     } catch (err) {
       console.error('Error loading order details:', err);
