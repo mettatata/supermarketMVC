@@ -112,10 +112,13 @@ const Orders = {
         o.total,
         o.address,
         o.created_at,
-        COUNT(od.id) as itemCount
+        COUNT(od.id) as itemCount,
+        SUBSTRING_INDEX(GROUP_CONCAT(t.payerId ORDER BY t.id DESC), ',', 1) as payerId,
+        SUBSTRING_INDEX(GROUP_CONCAT(t.payerEmail ORDER BY t.id DESC), ',', 1) as payerEmail
       FROM orders o
       LEFT JOIN users u ON u.id = o.userid
       LEFT JOIN order_details od ON od.orderid = o.id
+      LEFT JOIN transactions t ON t.orderId = o.id
       ${whereClause}
       GROUP BY o.id, o.userid, u.username, u.email, o.total, o.address, o.created_at
       ORDER BY o.created_at DESC

@@ -54,3 +54,31 @@ async function captureOrder(orderId) {
 }
 
 module.exports = { createOrder, captureOrder };
+/**
+ * Refund a PayPal payment by capture ID
+ * @param {string} captureId - The PayPal capture ID to refund
+ * @param {string|number} [amount] - Optional amount to refund (if not full)
+ * @returns {Promise<object>} PayPal refund response
+ */
+async function refundPayment(captureId, amount) {
+  const accessToken = await getAccessToken();
+  const url = `${PAYPAL_API}/v2/payments/captures/${captureId}/refund`;
+  const body = amount ? {
+    amount: {
+      value: String(amount),
+      currency_code: 'SGD'
+    }
+  } : undefined;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await response.json();
+  return data;
+}
+
+module.exports.refundPayment = refundPayment;

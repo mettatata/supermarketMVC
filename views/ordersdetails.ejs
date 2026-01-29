@@ -79,6 +79,11 @@
       </table>
       <a href="/orders" class="btn btn-secondary no-print">Back to Orders</a>
       <button onclick="window.print()" class="btn btn-info no-print">Print</button>
+        <% if (paymentMethod === 'PayPal' && transaction && transaction.captureId && transaction.status !== 'REFUNDED') { %>
+          <a href="/refund?orderId=<%= order.orderid || order.id %>" class="btn btn-danger no-print">Refund</a>
+        <% } else if (transaction && transaction.status === 'REFUNDED') { %>
+          <span class="badge bg-success">Refunded</span>
+        <% } %>
     <% } else { %>
       <% if (!orders || !orders.length) { %>
         <div class="alert alert-info">You have no orders yet.</div>

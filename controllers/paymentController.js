@@ -1,7 +1,7 @@
+const OrderDetails = require('../models/orderdetails');
 const Transaction = require("../models/transaction");
 const CartItems = require('../models/cartitems');
 const Orders = require('../models/order');
-const OrderDetails = require('../models/orderdetails');
 const SupermarketModel = require('../models/supermarket');
 const UserModel = require('../models/user');
 const paypal = require('../services/paypal');
@@ -457,5 +457,46 @@ module.exports = {
       console.error('showThankYou error:', err);
       res.status(500).send('Error displaying thank you page');
     }
-  }
+  },
+  // Refund PayPal payment by capture ID
+  refundPayPal: async (req, res) => {
+    try {
+      const { orderId, reason } = req.body;
+      if (!orderId) return res.render('refund', { error: 'Order ID required', orderId, reason });
+      // Find transaction for this order
+      const transaction = await Transaction.getByOrderId(orderId);
+      if (!transaction || !transaction.captureId) {
+        return res.render('refund', { error: 'No PayPal transaction found for this order', orderId, reason });
+      }
+      // Optionally allow partial refund: req.body.amount
+      const refundResult = await paypal.refundPayment(transaction.captureId, req.body.amount);
+      if (refundResult && refundResult.status === 'COMPLETED') {
+        // Update transaction status to REFUNDED
+        await Transaction.updateStatusByOrderId(orderId, 'REFUNDED');
+        // Optionally: store refund reason in DB (not implemented here)
+        // Restore product stock
+        const orderItems = await OrderDetails.getByOrderId(orderId);
+        const SupermarketModel = require('../models/supermarket');
+        for (const item of orderItems) {
+          // Fetch product to get current image
+          const product = await SupermarketModel.getProductById(item.productid);
+          await SupermarketModel.updateProduct({
+            productId: item.productid,
+            productName: item.productname,
+            quantity: (item.quantity ? Number(item.quantity) : 0) + (item.unitprice ? 0 : 0),
+            price: item.unitprice || item.price,
+            image: product && product.image ? product.image : '' // fallback to empty string if missing
+          });
+          // Actually increment stock
+          await SupermarketModel.decrementStock(item.productid, -Math.abs(item.quantity));
+        }
+        return res.redirect('/orders');
+      } else {
+        return res.render('refund', { error: 'Refund failed', details: refundResult, orderId, reason });
+      }
+    } catch (err) {
+      console.error('PayPal refund error:', err);
+      res.render('refund', { error: 'Refund failed', message: err.message, orderId: req.body.orderId, reason: req.body.reason });
+    }
+  },
 };

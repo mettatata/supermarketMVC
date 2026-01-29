@@ -1,4 +1,3 @@
-
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
@@ -226,7 +225,13 @@ app.get('/sse/payment-status/:txnRetrievalRef', async (req, res) => {
 
   req.on('close', () => clearInterval(interval));
 });
-
+// Refund page (GET)
+app.get('/refund', checkAuthenticated, (req, res) => {
+  const orderId = req.query.orderId || '';
+  res.render('refund', { orderId, reason: '', error: null, message: null, user: req.session.user });
+});
+// Refund PayPal order (POST)
+app.post('/refund/paypal', checkAuthenticated, paymentController.refundPayPal);
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -97,13 +97,22 @@ const AdminController = {
       const topProducts = await Orders.getTopProductsBySales(5, selectedMonth);
       const allOrders = await Orders.getAllOrders(selectedMonth);
 
+      // Count payment methods
+      let paypalCount = 0, netsCount = 0;
+      allOrders.forEach(order => {
+        if (order.payerId === 'NETS') netsCount++;
+        else if (order.payerId || order.payerEmail) paypalCount++;
+      });
+
       return res.render('adminreport', {
         user: user,
         totalOrders: totalOrders,
         totalSales: totalSales.toFixed(2),
         topProducts: topProducts,
         allOrders: allOrders,
-        selectedMonth: selectedMonth
+        selectedMonth: selectedMonth,
+        paypalCount,
+        netsCount
       });
     } catch (err) {
       console.error('AdminController.ordersReport error:', err);

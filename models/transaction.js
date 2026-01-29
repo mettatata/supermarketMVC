@@ -1,4 +1,4 @@
-const db = require('../db'); // This is now the promise-based pool
+const db = require('../db');
 
 const Transaction = {
   create: async (data) => {
@@ -17,6 +17,12 @@ const Transaction = {
                  LIMIT 1`;
     const [rows] = await db.query(sql, [orderId]);
     return rows && rows.length ? rows[0] : null;
+  },
+  // Update transaction status by orderId
+  updateStatusByOrderId: async (orderId, status) => {
+    const sql = 'UPDATE transactions SET status = ? WHERE orderId = ?';
+    const [result] = await db.query(sql, [status, orderId]);
+    return result;
   }
 };
 
