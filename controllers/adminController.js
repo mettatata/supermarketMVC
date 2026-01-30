@@ -97,6 +97,17 @@ const AdminController = {
       const topProducts = await Orders.getTopProductsBySales(5, selectedMonth);
       const allOrders = await Orders.getAllOrders(selectedMonth);
 
+      // Refunds summary (filter by month)
+      const Transaction = require('../models/transaction');
+      const refunds = await Transaction.getRefundsByMonth(selectedMonth);
+      const refundCount = refunds.length;
+      // Group reasons and count
+      const refundReasons = {};
+      refunds.forEach(r => {
+        const reason = r.refundReason || 'No reason provided';
+        refundReasons[reason] = (refundReasons[reason] || 0) + 1;
+      });
+
       // Count payment methods
       let paypalCount = 0, netsCount = 0;
       allOrders.forEach(order => {
@@ -112,7 +123,9 @@ const AdminController = {
         allOrders: allOrders,
         selectedMonth: selectedMonth,
         paypalCount,
-        netsCount
+        netsCount,
+        refundCount,
+        refundReasons
       });
     } catch (err) {
       console.error('AdminController.ordersReport error:', err);

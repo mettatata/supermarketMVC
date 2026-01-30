@@ -1,3 +1,4 @@
+
 const db = require('../db');
 
 const SupermarketModel = {
@@ -147,7 +148,26 @@ const SupermarketModel = {
       if (typeof cb === 'function') cb(err);
       throw err;
     }
-  }
+  },
+  // Async version: increment stock
+  incrementStock: async function (productId, amount, cb) {
+    try {
+      const productIdNum = Number(productId);
+      const qty = Number(amount || 0);
+      if (qty <= 0) {
+        const result = { affectedRows: 0 };
+        if (typeof cb === 'function') cb(null, result);
+        return result;
+      }
+      const sql = 'UPDATE products SET quantity = quantity + ? WHERE id = ?';
+      const [result] = await db.query(sql, [qty, productIdNum]);
+      if (typeof cb === 'function') cb(null, result);
+      return result;
+    } catch (err) {
+      if (typeof cb === 'function') cb(err);
+      throw err;
+    }
+  },
 };
 
 module.exports = SupermarketModel;

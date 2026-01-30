@@ -153,6 +153,38 @@
         </div>
       </div>
     </div>
+        <!-- Refunds Summary -->
+    <div class="row mb-2">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">Refunds Summary</h5>
+          </div>
+          <div class="card-body p-2">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="stat-card bg-light">
+                  <div class="stat-value"><%= refundCount %></div>
+                  <div class="stat-label">Total Refunds</div>
+                </div>
+              </div>
+              <div class="col-md-8">
+                <h6>Reasons for Refunds:</h6>
+                <% if (refundReasons && Object.keys(refundReasons).length > 0) { %>
+                  <ul class="mb-0">
+                  <% Object.entries(refundReasons).forEach(([reason, count]) => { %>
+                    <li><strong><%= count %></strong> - <%= reason %></li>
+                  <% }); %>
+                  </ul>
+                <% } else { %>
+                  <p class="text-muted">No refunds recorded.</p>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- All Orders Table -->
     <div class="card">

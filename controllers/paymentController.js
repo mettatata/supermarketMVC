@@ -471,24 +471,14 @@ module.exports = {
       // Optionally allow partial refund: req.body.amount
       const refundResult = await paypal.refundPayment(transaction.captureId, req.body.amount);
       if (refundResult && refundResult.status === 'COMPLETED') {
-        // Update transaction status to REFUNDED
-        await Transaction.updateStatusByOrderId(orderId, 'REFUNDED');
-        // Optionally: store refund reason in DB (not implemented here)
+        // Update transaction status to REFUNDED and store refund reason
+        await Transaction.updateStatusByOrderId(orderId, 'REFUNDED', reason);
         // Restore product stock
         const orderItems = await OrderDetails.getByOrderId(orderId);
         const SupermarketModel = require('../models/supermarket');
         for (const item of orderItems) {
-          // Fetch product to get current image
-          const product = await SupermarketModel.getProductById(item.productid);
-          await SupermarketModel.updateProduct({
-            productId: item.productid,
-            productName: item.productname,
-            quantity: (item.quantity ? Number(item.quantity) : 0) + (item.unitprice ? 0 : 0),
-            price: item.unitprice || item.price,
-            image: product && product.image ? product.image : '' // fallback to empty string if missing
-          });
-          // Actually increment stock
-          await SupermarketModel.decrementStock(item.productid, -Math.abs(item.quantity));
+          // Increment stock by the quantity bought
+          await SupermarketModel.incrementStock(item.productid, item.quantity);
         }
         return res.redirect('/orders');
       } else {
